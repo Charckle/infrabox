@@ -1,0 +1,39 @@
+{% extends "infra_module/base.html" %}
+{% from "infra_module/macros.html" import render_field, render_textarea %}
+{% block nav_apps %}nav-active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('products_module.products_all') }}">Products</a></li>
+    {% if action == 'edit' and product %}
+    <li class="breadcrumb-item"><a href="{{ url_for('products_module.product_view', product_id=product['id']) }}">{{ product['name'] }}</a></li>
+    {% endif %}
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+
+<div class="row">
+  <div class="col-md-6 col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold">{{ title }}</div>
+      <div class="card-body">
+        <form method="POST">
+          {{ form.csrf_token }}
+          {{ form.id }}
+          {{ render_field(form.name, autofocus=true, placeholder='e.g. Montenegro Shipyard') }}
+          {{ render_textarea(form.comments, rows=4) }}
+          <div class="d-flex gap-2 mt-2">
+            {{ form.submit(class='btn btn-primary') }}
+            {% if action == 'edit' and product %}
+            <a href="{{ url_for('products_module.product_view', product_id=product['id']) }}" class="btn btn-outline-secondary">Cancel</a>
+            {% else %}
+            <a href="{{ url_for('products_module.products_all') }}" class="btn btn-outline-secondary">Cancel</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,429 @@
+{% extends "infra_module/base.html" %}
+{% from "infra_module/macros.html" import render_field, render_select, render_textarea %}
+{% block nav_servers %}nav-active{% endblock %}
+
+{% block extrahead %}
+<style>
+  .picker-container {
+    min-height: 44px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    padding: .375rem .5rem;
+    background: var(--bs-body-bg);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    align-items: center;
+  }
+  .picker-container.picker-empty::before {
+    content: attr(data-placeholder);
+    color: var(--bs-secondary-color);
+    font-size: .9em;
+    padding: .1rem .25rem;
+  }
+  .picker-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .25rem .55rem;
+    border-radius: .25rem;
+    font-size: .85em;
+    font-weight: 500;
+  }
+  .picker-badge .remove-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    opacity: .75;
+    cursor: pointer;
+    color: inherit;
+    font-size: 1.1em;
+  }
+  .picker-badge .remove-btn:hover { opacity: 1; }
+  .picker-list-item {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .picker-list-item .color-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .picker-list-item.already-selected {
+    opacity: .4;
+    pointer-events: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('servers_module.servers_all') }}">Servers</a></li>
+    {% if action == 'edit' and server %}
+    <li class="breadcrumb-item"><a href="{{ url_for('servers_module.server_view', server_id=server['id']) }}">{{ server['name'] }}</a></li>
+    {% endif %}
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+
+<div class="row">
+  <div class="col-xl-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold">{{ title }}</div>
+      <div class="card-body">
+        <form method="POST" id="serverForm">
+          {{ form.csrf_token }}
+          {{ form.id }}
+
+          <div class="row">
+            <div class="col-md-8">{{ render_field(form.name, autofocus=true) }}</div>
+            <div class="col-md-4">{{ render_select(form.status) }}</div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">{{ render_field(form.ip_address, placeholder='e.g. 10.0.1.10') }}</div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                {{ form.os.label(class='form-label') }}
+                <div class="input-group">
+                  {% if form.os.errors %}
+                    {% for e in form.os.errors %}<div class="text-danger small w-100">{{ e }}</div>{% endfor %}
+                    {{ form.os(class='form-control is-invalid', id='os', placeholder='e.g. Debian 12') }}
+                  {% else %}
+                    {{ form.os(class='form-control', id='os', placeholder='e.g. Debian 12') }}
+                  {% endif %}
+                  <button type="button" class="btn btn-outline-secondary"
+                          title="Browse operating systems" onclick="openOsPicker()">
+                    <i class="bi bi-search"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {{ render_field(form.url, placeholder='https://…') }}
+          {{ render_select(form.location_id) }}
+
+          <div class="row">
+            <div class="col-md-4">{{ render_field(form.cpu, placeholder='e.g. Intel Xeon E5-2680') }}</div>
+            <div class="col-md-2">{{ render_field(form.cpu_cores, placeholder='e.g. 8') }}</div>
+            <div class="col-md-3">{{ render_field(form.ram, placeholder='e.g. 32 GB') }}</div>
+            <div class="col-md-3">{{ render_field(form.disk, placeholder='e.g. 500 GB SSD') }}</div>
+          </div>
+
+          {{ render_textarea(form.comments, rows=3) }}
+
+          <hr class="my-3">
+          <div class="row g-3">
+
+            {# ── Roles picker ── #}
+            <div class="col-md-12">
+              <label class="form-label fw-semibold"><i class="bi bi-tags me-1"></i>Server Roles</label>
+              <div id="roles-container" class="picker-container picker-empty"
+                   data-placeholder="No roles selected"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                      onclick="openPicker('roles')">
+                <i class="bi bi-plus-lg me-1"></i>Add Role
+              </button>
+            </div>
+
+            {# ── Products picker ── #}
+            <div class="col-md-4">
+              <label class="form-label fw-semibold"><i class="bi bi-briefcase me-1"></i>Products</label>
+              <div id="products-container" class="picker-container picker-empty"
+                   data-placeholder="No products selected"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                      onclick="openPicker('products')">
+                <i class="bi bi-plus-lg me-1"></i>Add Product
+              </button>
+            </div>
+
+            {# ── Programs picker ── #}
+            <div class="col-md-4">
+              <label class="form-label fw-semibold"><i class="bi bi-code-square me-1"></i>Programs</label>
+              <div id="programs-container" class="picker-container picker-empty"
+                   data-placeholder="No programs selected"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                      onclick="openPicker('programs')">
+                <i class="bi bi-plus-lg me-1"></i>Add Program
+              </button>
+            </div>
+
+            {# ── Tags picker ── #}
+            <div class="col-md-4">
+              <label class="form-label fw-semibold"><i class="bi bi-tag me-1"></i>Tags</label>
+              <div id="tags-container" class="picker-container picker-empty"
+                   data-placeholder="No tags selected"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                      onclick="openPicker('tags')">
+                <i class="bi bi-plus-lg me-1"></i>Add Tag
+              </button>
+            </div>
+
+          </div>{# /row #}
+
+          <div class="d-flex gap-2 mt-4">
+            {{ form.submit(class='btn btn-primary') }}
+            {% if action == 'edit' and server %}
+            <a href="{{ url_for('servers_module.server_view', server_id=server['id']) }}" class="btn btn-outline-secondary">Cancel</a>
+            {% else %}
+            <a href="{{ url_for('servers_module.servers_all') }}" class="btn btn-outline-secondary">Cancel</a>
+            {% endif %}
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Picker Modal (single reusable modal, content swapped by JS) ── #}
+<div class="modal fade" id="pickerModal" tabindex="-1" data-bs-keyboard="true">
+  <div class="modal-dialog modal-dialog-scrollable" style="max-width:480px">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pickerModalTitle">Select</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="p-3 border-bottom">
+          <input type="text" id="pickerSearch" class="form-control"
+                 placeholder="Search…" autocomplete="off"
+                 oninput="filterPicker(this.value)">
+        </div>
+        <div id="pickerList" class="list-group list-group-flush"
+             style="max-height: 360px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extrascripts %}
+<script>
+/* ─────────────────────────────────────────────────────────────────────────────
+   Seed data from server (Jinja2 → JS JSON)
+───────────────────────────────────────────────────────────────────────────── */
+const OS_ITEMS = {{ ServerM.get_distinct_os_values() | tojson }};
+
+const PICKER_DATA = {
+  roles: {
+    label:    'Server Roles',
+    field:    'role_ids',
+    items:    {{ ServerRoleM.get_all() | tojson }},
+    color:    item => item.color ? '#' + item.color : '#6c757d',
+    badgeStyle: item => colorBadgeStyle(item.color, '0d6efd'),
+  },
+  products: {
+    label:   'Products',
+    field:   'product_ids',
+    items:   {{ ProductM.get_all() | tojson }},
+    color:   () => '#ffc107',
+    badgeStyle: () => 'background-color:#ffc107; color:#000',
+  },
+  programs: {
+    label:   'Programs',
+    field:   'program_ids',
+    items:   {{ ProgramM.get_all() | tojson }},
+    color:   () => '#0dcaf0',
+    badgeStyle: () => 'background-color:#0dcaf0; color:#000',
+  },
+  tags: {
+    label:   'Tags',
+    field:   'tag_ids',
+    items:   {{ TagM.get_all() | tojson }},
+    badgeStyle: item => colorBadgeStyle(item.color, '6c757d'),
+  },
+};
+
+/* Initial selections (populated for edit mode, empty for new) */
+const INITIAL = {
+  role_ids:    {{ (form.role_ids.data or []) | tojson }},
+  product_ids: {{ (form.product_ids.data or []) | tojson }},
+  program_ids: {{ (form.program_ids.data or []) | tojson }},
+  tag_ids:     {{ (form.tag_ids.data or []) | tojson }},
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   State
+───────────────────────────────────────────────────────────────────────────── */
+const selected = {
+  roles:    new Set(INITIAL.role_ids.map(Number)),
+  products: new Set(INITIAL.product_ids.map(Number)),
+  programs: new Set(INITIAL.program_ids.map(Number)),
+  tags:     new Set(INITIAL.tag_ids.map(Number)),
+};
+
+let activeType = null;
+let pickerModal = null;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Badge rendering
+───────────────────────────────────────────────────────────────────────────── */
+function renderBadges(type) {
+  const cfg       = PICKER_DATA[type];
+  const container = document.getElementById(type + '-container');
+  container.innerHTML = '';
+
+  selected[type].forEach(id => {
+    const item = cfg.items.find(i => i.id === id);
+    if (!item) return;
+
+    const badge = document.createElement('span');
+    badge.className = 'picker-badge';
+    badge.id        = `badge-${type}-${id}`;
+    badge.setAttribute('style', cfg.badgeStyle(item));
+    badge.innerHTML = `
+      ${escHtml(item.name)}
+      <button type="button" class="remove-btn" title="Remove"
+              onclick="removeItem('${type}', ${id})">×</button>
+      <input type="hidden" name="${cfg.field}" value="${id}">
+    `;
+    container.appendChild(badge);
+  });
+
+  // toggle placeholder class
+  container.classList.toggle('picker-empty', selected[type].size === 0);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Picker modal
+───────────────────────────────────────────────────────────────────────────── */
+function openPicker(type) {
+  activeType = type;
+  const cfg = PICKER_DATA[type];
+  document.getElementById('pickerModalTitle').textContent = cfg.label;
+  document.getElementById('pickerSearch').value = '';
+  filterPicker('');
+  pickerModal.show();
+}
+
+function openOsPicker() {
+  activeType = 'os';
+  document.getElementById('pickerModalTitle').textContent = 'Operating System';
+  document.getElementById('pickerSearch').value = '';
+  filterPicker('');
+  pickerModal.show();
+}
+
+function filterPicker(query) {
+  if (activeType === 'os') {
+    const q = query.toLowerCase().trim();
+    const list = document.getElementById('pickerList');
+    const items = OS_ITEMS.filter(item => item.name.toLowerCase().includes(q));
+
+    if (items.length === 0) {
+      list.innerHTML = '<div class="text-center text-muted p-4">No operating systems found.</div>';
+      return;
+    }
+
+    list.innerHTML = items.map(item => `
+      <button type="button" class="list-group-item list-group-item-action picker-list-item"
+              onclick='selectOs(${JSON.stringify(item.name)})'>
+        <span>${escHtml(item.name)}</span>
+        <span class="text-muted ms-auto small">${item.count}</span>
+      </button>
+    `).join('');
+    return;
+  }
+
+  if (!activeType) return;
+  const cfg   = PICKER_DATA[activeType];
+  const q     = query.toLowerCase().trim();
+  const list  = document.getElementById('pickerList');
+  const items = cfg.items.filter(item =>
+    !selected[activeType].has(item.id) &&
+    item.name.toLowerCase().includes(q)
+  );
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="text-center text-muted p-4">No items found.</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(item => `
+    <button type="button" class="list-group-item list-group-item-action picker-list-item"
+            onclick="addItem('${activeType}', ${item.id})">
+      ${activeType === 'roles' || activeType === 'tags'
+        ? `<span class="color-dot" style="background:#${item.color || '6c757d'}"></span>`
+        : ''}
+      ${escHtml(item.name)}
+    </button>
+  `).join('');
+}
+
+function addItem(type, id) {
+  selected[type].add(id);
+  renderBadges(type);
+  // refresh list so added item disappears, keep modal open
+  filterPicker(document.getElementById('pickerSearch').value);
+}
+
+function selectOs(name) {
+  document.getElementById('os').value = name;
+  pickerModal.hide();
+}
+
+function removeItem(type, id) {
+  selected[type].delete(id);
+  renderBadges(type);
+  // if modal is open for this type, refresh its list
+  if (activeType === type && document.getElementById('pickerModal').classList.contains('show')) {
+    filterPicker(document.getElementById('pickerSearch').value);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Utility
+───────────────────────────────────────────────────────────────────────────── */
+function hexTextColor(hex, dark = '#212529', light = '#fff') {
+  hex = (hex || '').replace(/^#/, '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  if (hex.length !== 6) return light;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 128 ? dark : light;
+}
+
+function colorBadgeStyle(hex, defaultHex) {
+  const color = (hex || defaultHex).replace(/^#/, '');
+  return `background-color:#${color};color:${hexTextColor(color)}`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Init
+───────────────────────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  const pickerModalEl = document.getElementById('pickerModal');
+  pickerModal = new bootstrap.Modal(pickerModalEl);
+
+  // Reset activeType when modal closes
+  pickerModalEl.addEventListener('hidden.bs.modal', () => {
+    activeType = null;
+  });
+
+  pickerModalEl.addEventListener('shown.bs.modal', () => {
+    document.getElementById('pickerSearch').focus();
+  });
+
+  // Escape closes the picker (including when focus is in the search box)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && pickerModalEl.classList.contains('show')) {
+      e.preventDefault();
+      pickerModal.hide();
+    }
+  });
+
+  // Render initial badges for all pickers
+  ['roles', 'products', 'programs', 'tags'].forEach(renderBadges);
+});
+</script>
+{% endblock %}

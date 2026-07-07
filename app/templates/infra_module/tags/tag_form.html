@@ -1,0 +1,54 @@
+{% extends "infra_module/base.html" %}
+{% from "infra_module/macros.html" import render_field, render_textarea %}
+{% block nav_apps %}nav-active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('tags_module.tags_all') }}">Tags</a></li>
+    {% if action == 'edit' and tag %}
+    <li class="breadcrumb-item"><a href="{{ url_for('tags_module.tag_view', tag_id=tag['id']) }}">{{ tag['name'] }}</a></li>
+    {% endif %}
+    <li class="breadcrumb-item active">{{ title }}</li>
+  </ol>
+</nav>
+
+<div class="row">
+  <div class="col-md-6 col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold">{{ title }}</div>
+      <div class="card-body">
+        <form method="POST">
+          {{ form.csrf_token }}
+          {{ form.id }}
+
+          {{ render_field(form.name, autofocus=true, placeholder='e.g. production, backup') }}
+
+          <div class="mb-3">
+            {{ form.color.label(class='form-label') }}
+            <div class="input-group">
+              <input type="color" class="form-control form-control-color" id="colorPicker"
+                     value="#{{ form.color.data or '6c757d' }}"
+                     oninput="document.getElementById('colorHex').value=this.value.replace('#','')">
+              {{ form.color(class='form-control', id='colorHex',
+                            placeholder='6c757d',
+                            oninput="document.getElementById('colorPicker').value='#'+this.value") }}
+            </div>
+          </div>
+
+          {{ render_textarea(form.comments, rows=4) }}
+
+          <div class="d-flex gap-2 mt-2">
+            {{ form.submit(class='btn btn-primary') }}
+            {% if action == 'edit' and tag %}
+            <a href="{{ url_for('tags_module.tag_view', tag_id=tag['id']) }}" class="btn btn-outline-secondary">Cancel</a>
+            {% else %}
+            <a href="{{ url_for('tags_module.tags_all') }}" class="btn btn-outline-secondary">Cancel</a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

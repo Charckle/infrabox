@@ -1,0 +1,119 @@
+{% extends "infra_module/base.html" %}
+{% from "infra_module/macros.html" import render_ips %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h4 class="mb-0"><i class="bi bi-house me-2"></i>Dashboard</h4>
+    <small class="text-muted">Welcome to {{ config['APP_NAME'] }}</small>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <a href="{{ url_for('servers_module.servers_all') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="fs-2 text-primary"><i class="bi bi-server"></i></div>
+          <div>
+            <div class="fs-4 fw-bold">{{ server_count }}</div>
+            <div class="text-muted small">Servers</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <a href="{{ url_for('roles_module.roles_all') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="fs-2 text-success"><i class="bi bi-tags"></i></div>
+          <div>
+            <div class="fs-4 fw-bold">{{ role_count }}</div>
+            <div class="text-muted small">Server Roles</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <a href="{{ url_for('products_module.products_all') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="fs-2 text-warning"><i class="bi bi-briefcase"></i></div>
+          <div>
+            <div class="fs-4 fw-bold">{{ product_count }}</div>
+            <div class="text-muted small">Products</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-xl">
+    <a href="{{ url_for('programs_module.programs_all') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="fs-2 text-info"><i class="bi bi-code-square"></i></div>
+          <div>
+            <div class="fs-4 fw-bold">{{ program_count }}</div>
+            <div class="text-muted small">Programs</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-sm-6 col-xl">
+    <a href="{{ url_for('tags_module.tags_all') }}" class="text-decoration-none">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="fs-2 text-secondary"><i class="bi bi-tag"></i></div>
+          <div>
+            <div class="fs-4 fw-bold">{{ tag_count }}</div>
+            <div class="text-muted small">Tags</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-clock-history me-1"></i>Recently Added Servers</span>
+    <a href="{{ url_for('servers_module.servers_all') }}" class="btn btn-sm btn-outline-primary">View All</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+          <th>IP Address</th>
+          <th>OS</th>
+          <th>Added</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in recent_servers %}
+        <tr onclick="window.location='{{ url_for('servers_module.server_view', server_id=s['id']) }}'">
+          <td>
+            <span class="ib-copyable fw-semibold text-primary"
+                  role="button" tabindex="0" title="Click to copy name"
+                  data-copy="{{ s['name']|e }}"
+                  onclick="ibCopyText(this.dataset.copy, event)">{{ s['name'] }}</span>
+          </td>
+          <td><span class="badge text-bg-{{ status_badge(s.get('status','active')) }}">{{ s.get('status','active')|capitalize }}</span></td>
+          <td>
+            {{ render_ips(s.get('ip_address'), copyable=true) }}
+          </td>
+          <td>{{ s.get('os','') or '—' }}</td>
+          <td class="text-muted small">{{ s.get('created','') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted py-4">No servers yet. <a href="{{ url_for('servers_module.server_new') }}">Add one</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

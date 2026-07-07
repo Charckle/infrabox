@@ -1,0 +1,925 @@
+{% extends "infra_module/base.html" %}
+{% block nav_servers %}nav-active{% endblock %}
+
+{% block extrahead %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+  /* ── Filter combobox ─────────────────────────────────────────────── */
+  .filter-combobox-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1050;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .filter-combobox-menu.show { display: block; }
+  .filter-combobox-item { cursor: pointer; white-space: normal; }
+  .filter-multi-chips { min-height: 0; }
+  .filter-multi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    font-size: .75rem;
+    padding: .15rem .4rem;
+    border-radius: .25rem;
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+  }
+  .filter-multi-chip .btn-close { font-size: .6rem; padding: 0; }
+
+  .filter-search-wrap { position: relative; }
+  .filter-search-clear {
+    display: none;
+    position: absolute;
+    top: 50%;
+    right: .35rem;
+    transform: translateY(-50%);
+    padding: 0 .25rem;
+    line-height: 1;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+  }
+  .filter-search-clear:hover { color: var(--bs-body-color); }
+  .filter-search-wrap.has-value .filter-search-clear { display: block; }
+  .filter-search-wrap.has-value .form-control { padding-right: 1.75rem; }
+
+  /* ── Canvas view ─────────────────────────────────────────────────── */
+  #serverCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+  #serverCanvas:active { cursor: grabbing; }
+
+  .product-ring {
+    fill: none;
+    stroke: var(--bs-secondary-color, #6c757d);
+    stroke-width: 1.5;
+    stroke-dasharray: 6 3;
+    opacity: 0.5;
+  }
+  .product-label {
+    fill: currentColor;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .server-node .status-circle,
+  .server-node .tag-band {
+    cursor: pointer;
+    transition: opacity .12s, stroke-width .12s;
+  }
+  .server-node .tag-divider {
+    pointer-events: none;
+    transition: opacity .12s, stroke-width .12s;
+  }
+  .server-node text { pointer-events: none; font-family: inherit; }
+
+  #canvasTooltip {
+    position: fixed;
+    z-index: 1200;
+    display: none;
+    min-width: 170px;
+    max-width: 250px;
+    font-size: .82rem;
+    pointer-events: none;
+  }
+  #canvasTooltip .badge { font-weight: 500; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+
+  {# ── Filter sidebar ── #}
+  <div class="col-md-3 col-lg-2 ib-sidebar mb-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><i class="bi bi-funnel me-1"></i>Filters</div>
+      <div class="card-body p-2">
+
+        <div class="mb-2">
+          <label class="form-label small fw-semibold mb-1">Search</label>
+          <div id="fqWrap" class="filter-search-wrap">
+            <input id="fq" type="text" class="form-control form-control-sm"
+                   placeholder="name / IP / OS / URL / comments" autocomplete="off">
+            <button id="fqClear" type="button" class="btn btn-link btn-sm filter-search-clear"
+                    aria-label="Clear search" title="Clear">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+
+        {# Status — multi #}
+        <div class="mb-2 filter-combobox-multi" data-field="status_id" data-state-key="statuses">
+          <label class="form-label small fw-semibold mb-1">Status</label>
+          <div class="filter-multi-chips d-flex flex-wrap gap-1 mb-1"></div>
+          <div class="position-relative">
+            <input type="text" class="form-control form-control-sm filter-combobox-input"
+                   placeholder="Add status…" autocomplete="off">
+            <div class="filter-combobox-menu dropdown-menu w-100 shadow-sm"></div>
+          </div>
+        </div>
+
+        {# Role — multi #}
+        <div class="mb-2 filter-combobox-multi" data-field="role_id" data-state-key="role_ids">
+          <label class="form-label small fw-semibold mb-1">Role</label>
+          <div class="filter-multi-chips d-flex flex-wrap gap-1 mb-1"></div>
+          <div class="position-relative">
+            <input type="text" class="form-control form-control-sm filter-combobox-input"
+                   placeholder="Add role…" autocomplete="off">
+            <div class="filter-combobox-menu dropdown-menu w-100 shadow-sm"></div>
+          </div>
+        </div>
+
+        {# Program — multi #}
+        <div class="mb-2 filter-combobox-multi" data-field="program_id" data-state-key="program_ids">
+          <label class="form-label small fw-semibold mb-1">Program</label>
+          <div class="filter-multi-chips d-flex flex-wrap gap-1 mb-1"></div>
+          <div class="position-relative">
+            <input type="text" class="form-control form-control-sm filter-combobox-input"
+                   placeholder="Add program…" autocomplete="off">
+            <div class="filter-combobox-menu dropdown-menu w-100 shadow-sm"></div>
+          </div>
+        </div>
+
+        {# Product — multi #}
+        <div class="mb-2 filter-combobox-multi" data-field="product_id" data-state-key="product_ids">
+          <label class="form-label small fw-semibold mb-1">Product</label>
+          <div class="filter-multi-chips d-flex flex-wrap gap-1 mb-1"></div>
+          <div class="position-relative">
+            <input type="text" class="form-control form-control-sm filter-combobox-input"
+                   placeholder="Add product…" autocomplete="off">
+            <div class="filter-combobox-menu dropdown-menu w-100 shadow-sm"></div>
+          </div>
+        </div>
+
+        {# Location — multi #}
+        <div class="mb-2 filter-combobox-multi" data-field="location_id" data-state-key="location_ids">
+          <label class="form-label small fw-semibold mb-1">Location</label>
+          <div class="filter-multi-chips d-flex flex-wrap gap-1 mb-1"></div>
+          <div class="position-relative">
+            <input type="text" class="form-control form-control-sm filter-combobox-input"
+                   placeholder="Add location…" autocomplete="off">
+            <div class="filter-combobox-menu dropdown-menu w-100 shadow-sm"></div>
+          </div>
+        </div>
+
+        {# Tag — multi #}
+        <div class="mb-2 filter-combobox-multi" data-field="tag_id" data-state-key="tag_ids">
+          <label class="form-label small fw-semibold mb-1">Tag</label>
+          <div class="filter-multi-chips d-flex flex-wrap gap-1 mb-1"></div>
+          <div class="position-relative">
+            <input type="text" class="form-control form-control-sm filter-combobox-input"
+                   placeholder="Add tag…" autocomplete="off">
+            <div class="filter-combobox-menu dropdown-menu w-100 shadow-sm"></div>
+          </div>
+        </div>
+
+        <button id="btnClearFilters" type="button"
+                class="btn btn-sm btn-outline-secondary w-100 mt-1" style="display:none"
+                onclick="clearAllFilters()">
+          <i class="bi bi-x-circle me-1"></i>Clear
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  {# ── Main content ── #}
+  <div class="col-md-9 col-lg-10">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0"><i class="bi bi-server me-2"></i>Servers
+        <span id="serverCount" class="badge text-bg-secondary ms-1">0</span>
+      </h5>
+      <div class="d-flex gap-2 align-items-center">
+        {% if current_user and current_user['role'] <= 2 %}
+        <a href="{{ url_for('servers_module.server_new') }}" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-lg me-1"></i>Add Server
+        </a>
+        {% endif %}
+        <div class="btn-group btn-group-sm" role="group" aria-label="View mode">
+          <button id="btnTableView" type="button" class="btn btn-outline-secondary"
+                  onclick="switchView('table')">
+            <i class="bi bi-table me-1"></i>Table
+          </button>
+          <button id="btnCanvasView" type="button" class="btn btn-outline-secondary"
+                  onclick="switchView('canvas')">
+            <i class="bi bi-diagram-3 me-1"></i>Canvas
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {# ── Table view ── #}
+    <div id="tableView">
+      <div id="tableColToggles" class="mb-2 small d-flex align-items-center flex-wrap gap-2">
+        <span class="text-muted">Show:</span>
+        <div class="form-check form-check-inline mb-0">
+          <input class="form-check-input" type="checkbox" id="colShowLocation">
+          <label class="form-check-label" for="colShowLocation">Location</label>
+        </div>
+        <div class="form-check form-check-inline mb-0">
+          <input class="form-check-input" type="checkbox" id="colShowPrograms">
+          <label class="form-check-label" for="colShowPrograms">Programs</label>
+        </div>
+        <div class="form-check form-check-inline mb-0">
+          <input class="form-check-input" type="checkbox" id="colShowUrls">
+          <label class="form-check-label" for="colShowUrls">URLs</label>
+        </div>
+        <div class="form-check form-check-inline mb-0">
+          <input class="form-check-input" type="checkbox" id="colShowComments">
+          <label class="form-check-label" for="colShowComments">Comments</label>
+        </div>
+      </div>
+      <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th id="colThLocation" class="d-none">Location</th>
+                <th>Tags</th>
+                <th>Status</th>
+                <th>Roles</th>
+                <th>IP Address</th>
+                <th>OS</th>
+                <th>Products</th>
+                <th id="colThPrograms" class="d-none">Programs</th>
+                <th id="colThUrls" class="d-none">URL(s)</th>
+                <th id="colThComments" class="d-none">Comments</th>
+              </tr>
+            </thead>
+            <tbody id="serverTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# ── Canvas view ── #}
+    <div id="canvasView" style="position:relative; height:calc(100vh - 158px);">
+      <svg id="serverCanvas"></svg>
+
+      {# Legends #}
+      <div class="position-absolute bottom-0 start-0 m-2 p-2 rounded small lh-lg d-flex gap-3 flex-wrap"
+           style="background:var(--bs-body-bg); border:1px solid var(--bs-border-color); max-width:min(90%, 520px);">
+        <div>
+          <div class="text-muted fw-semibold mb-1" style="font-size:.7rem; letter-spacing:.03em;">STATUS</div>
+          <div><span class="status-dot me-1" style="background:#198754"></span>Active</div>
+          <div><span class="status-dot me-1" style="background:#dc3545"></span>Inactive</div>
+          <div><span class="status-dot me-1" style="background:#fd7e14"></span>Maintenance</div>
+          <div><span class="status-dot me-1" style="background:#6c757d"></span>Decommissioned</div>
+        </div>
+        {% if tags %}
+        <div>
+          <div class="text-muted fw-semibold mb-1" style="font-size:.7rem; letter-spacing:.03em;">TAGS <span class="fw-normal">(bottom band)</span></div>
+          {% for t in tags %}
+          <div><span class="status-dot me-1" style="background:#{{ t.get('color', '6c757d') }}"></span>{{ t['name'] }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="position-absolute bottom-0 end-0 m-2 text-muted small user-select-none">
+        <i class="bi bi-mouse me-1"></i>Scroll to zoom &middot; Drag to pan
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="canvasTooltip" class="card shadow p-2"></div>
+{% endblock %}
+
+{% block extrascripts %}
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   Data (all servers, always full list — filtering is done in JS)
+   ═══════════════════════════════════════════════════════════════════════ */
+const ALL_SERVERS   = {{ servers   | tojson }};
+const PRODUCTS_DATA = {{ products  | tojson }};
+const ROLES_DATA    = {{ roles     | tojson }};
+const TAGS_DATA     = {{ tags      | tojson }};
+const PROGRAMS_DATA = {{ programs  | tojson }};
+const LOCATIONS_DATA = {{ locations | tojson }};
+const INIT_FILTERS  = {{ init_filters | tojson }};
+const SRV_URL_BASE  = {{ url_for('servers_module.server_view', server_id=0) | tojson }};
+
+const STATUSES_RAW = {{ statuses | tojson }};
+const FILTER_ITEMS = {
+  status_id:  STATUSES_RAW.map(([val, lbl]) => ({id: val, name: lbl})),
+  role_id:    ROLES_DATA,
+  product_id: PRODUCTS_DATA,
+  program_id:  PROGRAMS_DATA,
+  location_id: LOCATIONS_DATA,
+  tag_id:      TAGS_DATA,
+};
+
+function serverUrl(id) {
+  return SRV_URL_BASE.replace('/0/', '/' + id + '/');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Optional table columns (Location, Programs, URLs, Comments)
+   ═══════════════════════════════════════════════════════════════════════ */
+const COL_STORAGE_KEY = 'ib-server-columns';
+const columnState = { location: false, programs: false, urls: false, comments: false };
+
+function loadColumnState() {
+  try {
+    const raw = localStorage.getItem(COL_STORAGE_KEY);
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    columnState.location = !!o.location;
+    columnState.programs = !!o.programs;
+    columnState.urls = !!o.urls;
+    columnState.comments = !!o.comments;
+  } catch (_) { /* ignore corrupt storage */ }
+}
+
+function saveColumnState() {
+  localStorage.setItem(COL_STORAGE_KEY, JSON.stringify(columnState));
+}
+
+function tableColCount() {
+  return 7
+    + (columnState.location ? 1 : 0)
+    + (columnState.programs ? 1 : 0)
+    + (columnState.urls ? 1 : 0)
+    + (columnState.comments ? 1 : 0);
+}
+
+function syncColumnHeaders() {
+  document.getElementById('colThLocation').classList.toggle('d-none', !columnState.location);
+  document.getElementById('colThPrograms').classList.toggle('d-none', !columnState.programs);
+  document.getElementById('colThUrls').classList.toggle('d-none', !columnState.urls);
+  document.getElementById('colThComments').classList.toggle('d-none', !columnState.comments);
+}
+
+function setColumnToggle(key, checked) {
+  columnState[key] = checked;
+  saveColumnState();
+  syncColumnHeaders();
+  renderTable(currentServers);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Filter state
+   ═══════════════════════════════════════════════════════════════════════ */
+const filterState = {
+  q:            '',
+  statuses:     [],
+  role_ids:     [],
+  product_ids:  [],
+  program_ids:  [],
+  location_ids: [],
+  tag_ids:      [],
+};
+
+function filtersActive() {
+  return filterState.q ||
+    filterState.statuses.length || filterState.role_ids.length ||
+    filterState.product_ids.length || filterState.program_ids.length ||
+    filterState.location_ids.length || filterState.tag_ids.length;
+}
+
+/* ─── JS filter logic (OR within each dimension) ────────────────────── */
+function applyFilterLogic(servers) {
+  const q         = (filterState.q || '').toLowerCase().trim();
+  const statusFs  = new Set(filterState.statuses.map(String));
+  const roleFs    = new Set(filterState.role_ids.map(String));
+  const productFs = new Set(filterState.product_ids.map(String));
+  const programFs  = new Set(filterState.program_ids.map(String));
+  const locationFs = new Set(filterState.location_ids.map(String));
+  const tagFs      = new Set(filterState.tag_ids.map(String));
+
+  return servers.filter(s => {
+    if (q) {
+      const hay = [s.name||'', s.ip_address||'', s.os||'', s.url||'', s.comments||''].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (statusFs.size  && !statusFs.has(String(s.status)))                                          return false;
+    if (roleFs.size    && !(s.role_ids||[]).map(String).some(id => roleFs.has(id)))                 return false;
+    if (productFs.size && !(s.product_ids||[]).map(String).some(id => productFs.has(id)))           return false;
+    if (programFs.size  && !(s.program_ids||[]).map(String).some(id => programFs.has(id)))          return false;
+    if (locationFs.size && !locationFs.has(String(s.location_id || '')))                            return false;
+    if (tagFs.size      && !(s.tag_ids||[]).map(String).some(id => tagFs.has(id)))                  return false;
+    return true;
+  });
+}
+
+/* ─── Apply: filter → render ─────────────────────────────────────────── */
+let currentServers = [];
+let canvasDirty    = true;
+
+function applyFilters() {
+  currentServers = applyFilterLogic(ALL_SERVERS);
+  renderTable(currentServers);
+  document.getElementById('serverCount').textContent = currentServers.length;
+  document.getElementById('btnClearFilters').style.display = filtersActive() ? '' : 'none';
+  syncUrl();
+  if (document.getElementById('canvasView').style.display !== 'none') {
+    buildCanvas(currentServers);
+  } else {
+    canvasDirty = true;
+  }
+}
+
+/* ─── URL sync ───────────────────────────────────────────────────────── */
+function syncUrl() {
+  const p = new URLSearchParams();
+  if (filterState.q) p.set('q', filterState.q);
+  filterState.statuses.forEach(v    => p.append('status',     v));
+  filterState.role_ids.forEach(v    => p.append('role_id',    v));
+  filterState.product_ids.forEach(v => p.append('product_id', v));
+  filterState.program_ids.forEach(v  => p.append('program_id',  v));
+  filterState.location_ids.forEach(v => p.append('location_id', v));
+  filterState.tag_ids.forEach(v      => p.append('tag_id',      v));
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? ('?' + qs) : location.pathname);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Table rendering
+   ═══════════════════════════════════════════════════════════════════════ */
+function hesc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const STATUS_BADGE_CLS = {
+  active: 'success', inactive: 'danger',
+  maintenance: 'warning', decommissioned: 'secondary',
+};
+function statusBadgeCls(s) { return STATUS_BADGE_CLS[s] || 'secondary'; }
+
+function badgeStyle(hexColor, fallback) {
+  const h = String(hexColor || fallback || '6c757d').replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h.padStart(6,'0').slice(0,6);
+  let r = 108, g = 117, b = 125;
+  if (/^[0-9a-f]{6}$/i.test(full)) {
+    r = parseInt(full.slice(0,2),16);
+    g = parseInt(full.slice(2,4),16);
+    b = parseInt(full.slice(4,6),16);
+  }
+  const fg = (r*299+g*587+b*114)/1000 >= 128 ? '#212529' : '#fff';
+  return `background-color:#${full};color:${fg}`;
+}
+
+function renderIPs(ip_address) {
+  if (!ip_address) return '—';
+  const ips = ip_address.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+  if (!ips.length) return '—';
+  return ips.map(ip =>
+    `<code class="small ib-copyable" role="button" tabindex="0"
+           title="Click to copy IP" data-copy="${hesc(ip)}"
+           onclick="ibCopyText(this.dataset.copy,event)">${hesc(ip)}</code>`
+  ).join(', ');
+}
+
+function renderURLs(url) {
+  if (!url) return '—';
+  const urls = url.split(',').map(s => s.trim()).filter(Boolean);
+  if (!urls.length) return '—';
+  return urls.map(u =>
+    `<a href="${hesc(u)}" target="_blank" rel="noopener" class="small"
+        onclick="event.stopPropagation()">${hesc(u)}</a>`
+  ).join(', ');
+}
+
+function renderTable(servers) {
+  const tbody = document.getElementById('serverTbody');
+  const cols  = tableColCount();
+  if (!servers.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center text-muted py-5">No servers found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = servers.map(s => {
+    const roles    = (s.role_ids    || []).map(id => ROLES_DATA.find(r => r.id === Number(id))).filter(Boolean);
+    const products = (s.product_ids || []).map(id => PRODUCTS_DATA.find(p => p.id === Number(id))).filter(Boolean);
+    const programs = (s.program_ids || []).map(id => PROGRAMS_DATA.find(p => p.id === Number(id))).filter(Boolean);
+    const tags     = (s.tag_ids     || []).map(id => TAGS_DATA.find(t => t.id === Number(id))).filter(Boolean);
+    const location = LOCATIONS_DATA.find(l => l.id === Number(s.location_id));
+
+    const roleBadges    = roles.map(r =>
+      `<span class="badge me-1" style="${badgeStyle(r.color,'0d6efd')}">${hesc(r.name)}</span>`).join('');
+    const productBadges = products.map(p =>
+      `<span class="badge text-bg-light border me-1">${hesc(p.name)}</span>`).join('');
+    const programBadges = programs.map(p =>
+      `<span class="badge text-bg-light border me-1">${hesc(p.name)}</span>`).join('');
+    const tagBadges     = tags.map(t =>
+      `<span class="badge me-1" style="${badgeStyle(t.color,'6c757d')}">${hesc(t.name)}</span>`).join('');
+
+    let row = `<tr style="cursor:pointer" onclick="window.location='${serverUrl(s.id)}'">
+      <td><span class="ib-copyable fw-semibold text-primary"
+               role="button" tabindex="0" title="Click to copy name"
+               data-copy="${hesc(s.name)}"
+               onclick="ibCopyText(this.dataset.copy,event)">${hesc(s.name)}</span></td>`;
+    if (columnState.location) row += `<td class="small">${location ? hesc(location.name) : '—'}</td>`;
+    row += `<td class="small">${tagBadges || ''}</td>
+      <td><span class="badge text-bg-${statusBadgeCls(s.status)}">${hesc((s.status||'active'))}</span></td>
+      <td>${roleBadges || ''}</td>
+      <td>${renderIPs(s.ip_address)}</td>
+      <td class="small">${hesc(s.os) || '—'}</td>
+      <td class="small">${productBadges || ''}</td>`;
+    if (columnState.programs) row += `<td class="small">${programBadges || ''}</td>`;
+    if (columnState.urls)     row += `<td class="small">${renderURLs(s.url)}</td>`;
+    if (columnState.comments) row += `<td class="small">${hesc(s.comments) || '—'}</td>`;
+    row += '</tr>';
+    return row;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Filter controls
+   ═══════════════════════════════════════════════════════════════════════ */
+function filterEscHtml(text) {
+  return String(text)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─── Generalised multi-select combobox (all filters) ───────────────── */
+function initFilterMultiCombobox(el) {
+  const field     = el.dataset.field;
+  const stateKey  = el.dataset.stateKey;
+  const chipsWrap = el.querySelector('.filter-multi-chips');
+  const input     = el.querySelector('.filter-combobox-input');
+  const menu      = el.querySelector('.filter-combobox-menu');
+  const items     = FILTER_ITEMS[field] || [];
+
+  function selectedIds() { return (filterState[stateKey] || []).map(String); }
+
+  function renderChips() {
+    chipsWrap.innerHTML = selectedIds().map(id => {
+      const item = items.find(i => String(i.id) === id);
+      if (!item) return '';
+      return `<span class="filter-multi-chip">${filterEscHtml(item.name)}<button type="button" class="btn-close" aria-label="Remove" data-remove-id="${item.id}"></button></span>`;
+    }).join('');
+  }
+
+  function renderMenu(query) {
+    const q = query.toLowerCase().trim();
+    const sel = new Set(selectedIds());
+    const matches = items.filter(i => !sel.has(String(i.id)) && (!q || i.name.toLowerCase().includes(q)));
+    menu.innerHTML = matches.length
+      ? matches.map(i => `<button type="button" class="dropdown-item filter-combobox-item" data-id="${i.id}">${filterEscHtml(i.name)}</button>`).join('')
+      : `<div class="dropdown-item-text text-muted small">${q ? 'No matches' : 'All selected'}</div>`;
+    menu.classList.add('show');
+  }
+
+  function addId(id) {
+    if (!id || selectedIds().includes(String(id))) return;
+    filterState[stateKey] = [...(filterState[stateKey] || []), id];
+    renderChips();
+    renderMenu(input.value);
+    applyFilters();
+  }
+
+  function removeId(id) {
+    filterState[stateKey] = (filterState[stateKey] || []).filter(v => String(v) !== String(id));
+    renderChips();
+    applyFilters();
+  }
+
+  renderChips();
+  input.addEventListener('focus', () => { input.select(); renderMenu(input.value); });
+  input.addEventListener('input', () => renderMenu(input.value));
+  menu.addEventListener('mousedown', ev => ev.preventDefault());
+  menu.addEventListener('click', ev => { const btn = ev.target.closest('[data-id]'); if (btn) addId(btn.dataset.id); });
+  chipsWrap.addEventListener('click', ev => { const btn = ev.target.closest('[data-remove-id]'); if (btn) removeId(btn.dataset.removeId); });
+  input.addEventListener('blur', () => setTimeout(() => { menu.classList.remove('show'); input.value = ''; }, 150));
+  input.addEventListener('keydown', ev => { if (ev.key === 'Escape') { menu.classList.remove('show'); input.value = ''; input.blur(); } });
+}
+
+function clearAllFilters() {
+  filterState.q           = '';
+  filterState.statuses    = [];
+  filterState.role_ids    = [];
+  filterState.product_ids = [];
+  filterState.program_ids  = [];
+  filterState.location_ids = [];
+  filterState.tag_ids      = [];
+  document.getElementById('fq').value = '';
+  syncSearchClearBtn();
+  document.querySelectorAll('.filter-multi-chips').forEach(c => { c.innerHTML = ''; });
+  applyFilters();
+}
+
+function syncSearchClearBtn() {
+  document.getElementById('fqWrap').classList.toggle('has-value', !!document.getElementById('fq').value);
+}
+
+/* ─── Wire up Search ─────────────────────────────────────────────────── */
+const fqInput = document.getElementById('fq');
+fqInput.addEventListener('input', function() {
+  filterState.q = this.value;
+  syncSearchClearBtn();
+  applyFilters();
+});
+document.getElementById('fqClear').addEventListener('click', function() {
+  fqInput.value = '';
+  filterState.q = '';
+  syncSearchClearBtn();
+  fqInput.focus();
+  applyFilters();
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Canvas
+   ═══════════════════════════════════════════════════════════════════════ */
+const STATUS_CLR = {
+  active:'#198754', inactive:'#dc3545',
+  maintenance:'#fd7e14', decommissioned:'#6c757d',
+};
+function statusColor(s) { return STATUS_CLR[s] || '#adb5bd'; }
+
+function serverTags(server) {
+  return (server.tag_ids || []).map(id => TAGS_DATA.find(t => t.id === Number(id))).filter(Boolean);
+}
+function tagHex(tag) {
+  const h = String(tag.color || '6c757d').replace('#','');
+  return h.length === 3 ? h.split('').map(c => c+c).join('') : h.padStart(6,'0').slice(0,6);
+}
+
+const BUBBLE_R     = 30;
+const BUBBLE_GAP   = 6;
+const PROD_PAD     = 22;
+const GROUP_GAP    = 65;
+const LABEL_ABOVE  = 20;
+const TARGET_ROW_W = 1900;
+const BUBBLE_STEP  = BUBBLE_R * 2 + BUBBLE_GAP;
+const TAG_BAND_Y   = BUBBLE_R / 2;
+
+function ringPositions(n) {
+  if (n === 0) return [];
+  const pos = []; let ring = 0;
+  while (pos.length < n) {
+    if (ring === 0) {
+      pos.push({x:0,y:0});
+    } else {
+      const ringR = ring * BUBBLE_STEP;
+      const cap   = Math.max(6, Math.floor(2 * Math.PI * ring));
+      for (let i = 0; i < cap && pos.length < n; i++) {
+        const a = (2*Math.PI*i/cap) - Math.PI/2;
+        pos.push({x: ringR*Math.cos(a), y: ringR*Math.sin(a)});
+      }
+    }
+    ring++;
+  }
+  return pos;
+}
+
+function groupRadiusFromPositions(positions) {
+  if (!positions.length) return 48;
+  return Math.max(48, Math.max(...positions.map(p => Math.hypot(p.x,p.y))) + BUBBLE_R + PROD_PAD);
+}
+
+function sortPositionsTB(positions) {
+  return [...positions].map((p,i) => ({p,i})).sort((a,b) => {
+    const ra = Math.round(a.p.y/BUBBLE_STEP), rb = Math.round(b.p.y/BUBBLE_STEP);
+    return ra !== rb ? ra - rb : a.p.x - b.p.x;
+  });
+}
+
+function primaryTagId(server) {
+  const ids = server.tag_ids || [];
+  return ids.length ? Number(ids[0]) : null;
+}
+
+function sortServersByTag(servers) {
+  return [...servers].sort((a,b) => {
+    const ta = primaryTagId(a), tb = primaryTagId(b);
+    const oa = ta === null ? Infinity : ta, ob = tb === null ? Infinity : tb;
+    return oa !== ob ? oa - ob : (a.name||'').localeCompare(b.name||'');
+  });
+}
+
+function tagRingLayout(servers) {
+  const rawPos   = ringPositions(servers.length);
+  const slots    = sortPositionsTB(rawPos);
+  const sorted   = sortServersByTag(servers);
+  return { servers: sorted, positions: slots.map(s => s.p) };
+}
+
+function buildGroups(servers) {
+  const groups = [];
+  for (const p of PRODUCTS_DATA) {
+    const srvs = servers.filter(s => (s.product_ids||[]).map(Number).includes(p.id));
+    if (!srvs.length) continue;
+    groups.push({id: p.id, name: p.name, servers: srvs});
+  }
+  const unassigned = servers.filter(s => !s.product_ids || !s.product_ids.length);
+  if (unassigned.length) groups.push({id: null, name: 'Unassigned', servers: unassigned});
+  groups.forEach(g => {
+    const layout = tagRingLayout(g.servers);
+    g.servers   = layout.servers;
+    g.positions = layout.positions;
+    g.radius    = groupRadiusFromPositions(g.positions);
+  });
+  return groups;
+}
+
+function layoutGroups(groups) {
+  const rows = []; let row = [], rowW = 0;
+  for (const g of groups) {
+    const w = g.radius * 2, need = rowW + (row.length ? GROUP_GAP : 0) + w;
+    if (row.length && need > TARGET_ROW_W) { rows.push(row); row=[g]; rowW=w; }
+    else { row.push(g); rowW=need; }
+  }
+  if (row.length) rows.push(row);
+  let totalH = 0, maxW = 0;
+  for (const r of rows) {
+    const rowH  = Math.max(...r.map(g => g.radius*2)) + LABEL_ABOVE + 12;
+    const rowTW = r.reduce((s,g) => s+g.radius*2, 0) + GROUP_GAP*(r.length-1);
+    let x = -rowTW/2;
+    for (const g of r) { g.cx=x+g.radius; g.cy=totalH+LABEL_ABOVE+g.radius; x+=g.radius*2+GROUP_GAP; }
+    totalH += rowH + GROUP_GAP;
+    maxW    = Math.max(maxW, rowTW);
+  }
+  return {totalH, maxW};
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────── */
+const tooltip = document.getElementById('canvasTooltip');
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showTooltip(event, d) {
+  const roleBadges = (d.role_ids||[]).map(id => {
+    const r = ROLES_DATA.find(r => r.id===Number(id));
+    return r ? `<span class="badge me-1" style="${badgeStyle(r.color)}">${esc(r.name)}</span>` : '';
+  }).join('');
+  const tagBadges = serverTags(d).map(t =>
+    `<span class="badge me-1" style="${badgeStyle(t.color,'6c757d')}">${esc(t.name)}</span>`
+  ).join('');
+  tooltip.innerHTML = `
+    <div class="fw-semibold mb-1">${esc(d.name)}</div>
+    <div class="mb-1"><span class="badge" style="background:${statusColor(d.status)};color:#fff">${esc(d.status||'unknown')}</span></div>
+    ${d.ip_address?`<div class="text-muted small">${esc(d.ip_address)}</div>`:''}
+    ${d.os?`<div class="text-muted small">${esc(d.os)}</div>`:''}
+    ${roleBadges?`<div class="mt-1">${roleBadges}</div>`:''}
+    ${tagBadges?`<div class="mt-1">${tagBadges}</div>`:''}`;
+  tooltip.style.display = 'block';
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  let x = event.clientX+14, y = event.clientY+14;
+  if (x+260 > window.innerWidth)  x = event.clientX-265;
+  if (y+160 > window.innerHeight) y = event.clientY-165;
+  tooltip.style.left = x+'px'; tooltip.style.top = y+'px';
+}
+
+/* ── Render canvas ────────────────────────────────────────────────────── */
+function buildCanvas(servers) {
+  const groups = buildGroups(servers);
+  const svgEl  = document.getElementById('serverCanvas');
+  const svg    = d3.select(svgEl);
+  svg.selectAll('*').remove();
+
+  if (!groups.length) {
+    svg.append('text').attr('x','50%').attr('y','50%')
+       .attr('text-anchor','middle').attr('dominant-baseline','middle')
+       .attr('fill','currentColor').attr('font-size',16)
+       .text('No servers to display.');
+    return;
+  }
+
+  const {totalH, maxW} = layoutGroups(groups);
+  const root = svg.append('g').attr('id','canvasRoot');
+  const defs = svg.append('defs');
+  let clipSeq = 0;
+
+  const zoom = d3.zoom().scaleExtent([0.04,8])
+    .on('zoom', ev => root.attr('transform', ev.transform));
+  svg.call(zoom);
+
+  const gSel = root.selectAll('.product-group').data(groups).join('g')
+    .attr('class','product-group')
+    .attr('transform', g => `translate(${g.cx},${g.cy})`);
+
+  gSel.append('circle').attr('class','product-ring').attr('r', g => g.radius);
+  gSel.append('text').attr('class','product-label')
+      .attr('y', g => -g.radius-6).attr('text-anchor','middle')
+      .text(g => g.name);
+
+  const nodes = gSel.selectAll('.server-node')
+    .data(g => g.servers.map((s,i) => ({...s, _pos: g.positions[i], _gk: `${g.id??'u'}-${s.id}`})))
+    .join('g').attr('class','server-node')
+    .attr('transform', d => `translate(${d._pos.x},${d._pos.y})`);
+
+  nodes.append('circle').attr('class','status-circle')
+       .attr('r',BUBBLE_R).attr('fill', d=>statusColor(d.status))
+       .attr('stroke', d=>statusColor(d.status)).attr('stroke-width',2).attr('opacity',0.85);
+
+  nodes.each(function(d) {
+    const g = d3.select(this);
+    const tags = serverTags(d);
+    if (!tags.length) return;
+    const stripW = (BUBBLE_R*2)/tags.length;
+    tags.forEach((tag,ti) => {
+      const clipId = `tc-${clipSeq++}`;
+      defs.append('clipPath').attr('id',clipId).append('rect')
+        .attr('x',-BUBBLE_R+stripW*ti).attr('y',TAG_BAND_Y)
+        .attr('width',stripW).attr('height',BUBBLE_R/2);
+      g.append('circle').attr('class','tag-band').attr('r',BUBBLE_R)
+       .attr('fill',`#${tagHex(tag)}`).attr('clip-path',`url(#${clipId})`).attr('opacity',0.92);
+    });
+    g.append('line').attr('class','tag-divider')
+     .attr('x1',-BUBBLE_R).attr('y1',TAG_BAND_Y).attr('x2',BUBBLE_R).attr('y2',TAG_BAND_Y)
+     .attr('stroke','#fff').attr('stroke-width',1.5).attr('opacity',0.55);
+  });
+
+  nodes.append('text').attr('text-anchor','middle').attr('dy','0.35em')
+       .attr('font-size',10).attr('fill','#fff')
+       .text(d => { const n=d.name||''; return n.length>14?n.slice(0,13)+'\u2026':n; });
+
+  nodes
+    .on('mouseenter', function(ev,d) {
+      const n = d3.select(this);
+      n.select('.status-circle').attr('opacity',1).attr('stroke-width',3.5);
+      n.selectAll('.tag-band').attr('opacity',1);
+      n.select('.tag-divider').attr('opacity',1).attr('stroke-width',2.5);
+      showTooltip(ev,d);
+    })
+    .on('mousemove', ev => moveTooltip(ev))
+    .on('mouseleave', function() {
+      const n = d3.select(this);
+      n.select('.status-circle').attr('opacity',0.85).attr('stroke-width',2);
+      n.selectAll('.tag-band').attr('opacity',0.92);
+      n.select('.tag-divider').attr('opacity',0.55).attr('stroke-width',1.5);
+      tooltip.style.display='none';
+    })
+    .on('click', function(ev,d) { ev.stopPropagation(); window.location.href=serverUrl(d.id); });
+
+  svg.on('click', () => { tooltip.style.display='none'; });
+
+  const cw=svgEl.clientWidth||900, ch=svgEl.clientHeight||500;
+  const scale=Math.min(1.0, 0.88*Math.min(cw/(maxW+120), ch/(totalH+80)));
+  svg.call(zoom.transform, d3.zoomIdentity.translate(cw/2,40).scale(scale));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   View toggle
+   ═══════════════════════════════════════════════════════════════════════ */
+function switchView(v) {
+  const isCanvas = (v === 'canvas');
+  document.getElementById('tableView').style.display       = isCanvas ? 'none' : '';
+  document.getElementById('tableColToggles').style.display = isCanvas ? 'none' : '';
+  document.getElementById('canvasView').style.display = isCanvas ? '' : 'none';
+  document.getElementById('btnTableView').classList.toggle('active', !isCanvas);
+  document.getElementById('btnCanvasView').classList.toggle('active', isCanvas);
+  localStorage.setItem('ib-server-view', v);
+  if (isCanvas && canvasDirty) {
+    buildCanvas(currentServers);
+    canvasDirty = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Bootstrap from URL params (bookmarks / refreshes)
+   ═══════════════════════════════════════════════════════════════════════ */
+/* ── Seed filterState from server-side initial values, then boot ──────── */
+filterState.q           = INIT_FILTERS.q           || '';
+filterState.statuses    = (INIT_FILTERS.statuses    || []).map(String);
+filterState.role_ids    = (INIT_FILTERS.role_ids    || []).map(String);
+filterState.product_ids = (INIT_FILTERS.product_ids || []).map(String);
+filterState.program_ids  = (INIT_FILTERS.program_ids  || []).map(String);
+filterState.location_ids = (INIT_FILTERS.location_ids || []).map(String);
+filterState.tag_ids      = (INIT_FILTERS.tag_ids      || []).map(String);
+
+document.getElementById('fq').value = filterState.q;
+syncSearchClearBtn();
+
+loadColumnState();
+document.getElementById('colShowLocation').checked  = columnState.location;
+document.getElementById('colShowPrograms').checked  = columnState.programs;
+document.getElementById('colShowUrls').checked      = columnState.urls;
+document.getElementById('colShowComments').checked  = columnState.comments;
+syncColumnHeaders();
+document.getElementById('colShowLocation').addEventListener('change', function() {
+  setColumnToggle('location', this.checked);
+});
+document.getElementById('colShowPrograms').addEventListener('change', function() {
+  setColumnToggle('programs', this.checked);
+});
+document.getElementById('colShowUrls').addEventListener('change', function() {
+  setColumnToggle('urls', this.checked);
+});
+document.getElementById('colShowComments').addEventListener('change', function() {
+  setColumnToggle('comments', this.checked);
+});
+
+/* Re-init all multi-comboboxes so chips render from seeded filterState */
+document.querySelectorAll('.filter-combobox-multi').forEach(initFilterMultiCombobox);
+
+applyFilters();
+switchView(localStorage.getItem('ib-server-view') || 'table');
+</script>
+{% endblock %}

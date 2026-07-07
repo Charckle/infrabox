@@ -1,0 +1,157 @@
+{% extends "infra_module/base.html" %}
+{% from "infra_module/macros.html" import render_field %}
+{% block nav_admin %}nav-active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('import_export_module.import_export_index') }}">Import / Export</a></li>
+    <li class="breadcrumb-item active">InfraBox import</li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+  <div class="col-lg-9">
+    <h4 class="mb-1"><i class="bi bi-upload me-2"></i>Import InfraBox data</h4>
+    <p class="text-muted mb-0">
+      Upload JSON or a full <code>.ibxf</code> backup. Import <strong>replaces all existing records</strong>
+      for the affected object type(s). IDs and timestamps are preserved from the file.
+    </p>
+  </div>
+</div>
+
+<div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  Importing a single object type wipes every record of that type before loading the file.
+  Server links (roles, products, programs, tags, location) only stay valid when IDs in the file match
+  what servers reference — use a full backup restore or re-import servers after related types.
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-archive me-1"></i>Full backup
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Restores tags, server roles, products, programs, server locations, and servers in dependency order.
+          If anything fails, all six types are rolled back to their pre-import state.
+          Does not affect users.
+        </p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ full_form.csrf_token }}
+          {{ render_field(full_form.import_file) }}
+          {{ full_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h5 class="text-muted mb-3">Per object type</h5>
+<div class="row g-4">
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-tag me-1"></i>Tags</div>
+      <div class="card-body">
+        <p class="text-muted small">JSON array — import first in a manual multi-file restore.</p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ tags_form.csrf_token }}
+          {{ render_field(tags_form.import_file) }}
+          {{ tags_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-diagram-3 me-1"></i>Server roles</div>
+      <div class="card-body">
+        <p class="text-muted small">JSON array.</p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ roles_form.csrf_token }}
+          {{ render_field(roles_form.import_file) }}
+          {{ roles_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-briefcase me-1"></i>Products</div>
+      <div class="card-body">
+        <p class="text-muted small">JSON array.</p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ products_form.csrf_token }}
+          {{ render_field(products_form.import_file) }}
+          {{ products_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-code-square me-1"></i>Programs</div>
+      <div class="card-body">
+        <p class="text-muted small">JSON array.</p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ programs_form.csrf_token }}
+          {{ render_field(programs_form.import_file) }}
+          {{ programs_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-geo-alt me-1"></i>Server locations</div>
+      <div class="card-body">
+        <p class="text-muted small">JSON array — import before servers when restoring manually.</p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ locations_form.csrf_token }}
+          {{ render_field(locations_form.import_file) }}
+          {{ locations_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-server me-1"></i>Servers</div>
+      <div class="card-body">
+        <p class="text-muted small">JSON array — import last when restoring manually.</p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ servers_form.csrf_token }}
+          {{ render_field(servers_form.import_file) }}
+          {{ servers_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-people me-1"></i>Users</div>
+      <div class="card-body">
+        <p class="text-muted small">
+          JSON array with password hashes. Replaces <strong>all</strong> users — you may lose login access
+          until accounts are fixed (e.g. edit <code>data/users.json</code> and restart the app).
+        </p>
+        <form method="POST" enctype="multipart/form-data">
+          {{ users_form.csrf_token }}
+          {{ render_field(users_form.import_file) }}
+          {{ users_form.submit(class='btn btn-warning') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

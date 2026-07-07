@@ -1,0 +1,8 @@
+{% extends "infra_module/base.html" %}
+{% block content %}
+<div class="text-center py-5">
+  <div class="display-1 text-muted">404</div>
+  <h4 class="mb-3">Page not found</h4>
+  <a href="{{ url_for('infra_module.index') }}" class="btn btn-primary">Go Home</a>
+</div>
+{% endblock %}

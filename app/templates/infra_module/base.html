@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ config['APP_NAME'] }}{% endblock %}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/bootstrap-icons/font/bootstrap-icons.min.css') }}" rel="stylesheet">
+  <style>
+    body { padding-top: 56px; }
+    .ib-sidebar { position: sticky; top: 70px; }
+    .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+    .nav-active > .nav-link { font-weight: 600; }
+    .table thead { background-color: var(--bs-tertiary-bg); }
+    .table-hover tbody tr:hover { cursor: pointer; }
+    .color-chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; }
+    .ib-copyable { cursor: copy; }
+    .ib-copyable:hover { text-decoration: underline dotted; }
+  </style>
+  {% block extrahead %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{{ url_for('infra_module.index') }}">
+      <i class="bi bi-hdd-network-fill me-1"></i>{{ config['APP_NAME'] }}
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav me-auto">
+
+        <li class="nav-item dropdown {% block nav_servers %}{% endblock %}">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-server me-1"></i>Servers
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('servers_module.servers_all') }}">All Servers</a></li>
+            {% if current_user and current_user['role'] <= 2 %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('servers_module.server_new') }}">
+              <i class="bi bi-plus-circle me-1"></i>Add Server</a></li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('roles_module.roles_all') }}">Server Roles</a></li>
+            {% if current_user and current_user['role'] <= 2 %}
+            <li><a class="dropdown-item" href="{{ url_for('roles_module.role_new') }}">
+              <i class="bi bi-plus-circle me-1"></i>Add Role</a></li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('locations_module.locations_all') }}">Server Locations</a></li>
+            {% if current_user and current_user['role'] <= 2 %}
+            <li><a class="dropdown-item" href="{{ url_for('locations_module.location_new') }}">
+              <i class="bi bi-plus-circle me-1"></i>Add Location</a></li>
+            {% endif %}
+          </ul>
+        </li>
+
+        <li class="nav-item dropdown {% block nav_apps %}{% endblock %}">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-grid me-1"></i>Applications
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('products_module.products_all') }}">Products</a></li>
+            {% if current_user and current_user['role'] <= 2 %}
+            <li><a class="dropdown-item" href="{{ url_for('products_module.product_new') }}">
+              <i class="bi bi-plus-circle me-1"></i>Add Product</a></li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('programs_module.programs_all') }}">Programs</a></li>
+            {% if current_user and current_user['role'] <= 2 %}
+            <li><a class="dropdown-item" href="{{ url_for('programs_module.program_new') }}">
+              <i class="bi bi-plus-circle me-1"></i>Add Program</a></li>
+            {% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('tags_module.tags_all') }}">Tags</a></li>
+            {% if current_user and current_user['role'] <= 2 %}
+            <li><a class="dropdown-item" href="{{ url_for('tags_module.tag_new') }}">
+              <i class="bi bi-plus-circle me-1"></i>Add Tag</a></li>
+            {% endif %}
+          </ul>
+        </li>
+
+        {% if current_user and current_user['role'] == 1 %}
+        <li class="nav-item dropdown {% block nav_admin %}{% endblock %}">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-wrench me-1"></i>Admin
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('admin_module.users_all') }}">Users</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('import_export_module.import_export_index') }}">Import / Export Overview</a></li>
+          </ul>
+        </li>
+        {% endif %}
+
+      </ul>
+
+      {% if current_user %}
+      <form class="d-flex mx-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width: 22rem"
+            method="GET" action="{{ url_for('servers_module.servers_all') }}">
+        <input class="form-control form-control-sm" type="search" name="q"
+               value="{{ request.args.get('q', '') }}"
+               placeholder="Search servers…" aria-label="Search servers">
+      </form>
+      {% endif %}
+
+      <ul class="navbar-nav ms-auto align-items-center">
+        <li class="nav-item me-2">
+          <button class="btn btn-outline-secondary btn-sm" id="themeToggle" title="Toggle dark mode">
+            <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
+          </button>
+        </li>
+        {% if current_user %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-person-circle me-1"></i>{{ current_user['username'] }}
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><span class="dropdown-item-text text-muted small">{{ role_label(current_user['role']) }}</span></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('infra_module.logout') }}">
+              <i class="bi bi-box-arrow-right me-1"></i>Logout</a></li>
+          </ul>
+        </li>
+        {% else %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('infra_module.login') }}">Login</a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid mt-3">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{% if category == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+{% include 'infra_module/_console_banner.html' %}
+<script>
+  const _html = document.documentElement;
+  const _btn  = document.getElementById('themeToggle');
+  const _icon = document.getElementById('themeIcon');
+  function applyTheme(t) {
+    _html.setAttribute('data-bs-theme', t);
+    _icon.className = t === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    localStorage.setItem('ib-theme', t);
+  }
+  _btn.addEventListener('click', () =>
+    applyTheme(_html.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark'));
+  applyTheme(localStorage.getItem('ib-theme') || 'light');
+
+  async function ibCopyText(text, ev) {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    let toast = document.getElementById('ibCopyToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'ibCopyToast';
+      toast.className = 'toast align-items-center text-bg-dark border-0 position-fixed bottom-0 end-0 m-3';
+      toast.setAttribute('role', 'alert');
+      toast.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body"><i class="bi bi-clipboard-check me-1"></i>Copied to clipboard</div>
+        </div>`;
+      document.body.appendChild(toast);
+    }
+    bootstrap.Toast.getOrCreateInstance(toast, { delay: 1500 }).show();
+  }
+</script>
+{% block extrascripts %}{% endblock %}
+</body>
+</html>

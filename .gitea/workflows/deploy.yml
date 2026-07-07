@@ -1,0 +1,23 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: main-hq
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build image
+        run: bash build_locally.sh
+
+      - name: Deploy
+        run: |
+          cd ${{ vars.DOCKER_COMPOSE_LOC }}
+          docker compose up -d
+

@@ -1,0 +1,12 @@
+services:
+  infrabox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5043:5000"
+    volumes:
+      - ./data:/app/data        # persist JSON files
+    env_file:
+      - .env

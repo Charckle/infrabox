@@ -1,0 +1,166 @@
+{% extends "infra_module/base.html" %}
+{% from "infra_module/macros.html" import render_field %}
+{% block nav_admin %}nav-active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('import_export_module.import_export_index') }}">Import / Export</a></li>
+    <li class="breadcrumb-item active">NetBox</li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+  <div class="col-lg-9">
+    <h4 class="mb-1"><i class="bi bi-box-seam me-2"></i>Import from NetBox</h4>
+    <p class="text-muted mb-0">
+      Export objects from NetBox as CSV, then upload them here. Existing records with the same name are skipped.
+    </p>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Tags ── #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-tag me-1"></i>Tags
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          NetBox export columns used: <code>Name</code>, <code>Color</code>, <code>Description</code>.
+          Other columns (<code>Items</code>, <code>Slug</code>, <code>ID</code>, etc.) are ignored.
+        </p>
+        <details class="mb-3">
+          <summary class="small text-muted" style="cursor:pointer">Example CSV format</summary>
+          <pre class="small bg-body-secondary p-2 rounded mt-2 mb-0"><code>Name,Items,Slug,Color,Description,ID,Created,Last updated
+Develop,58,develop,#4caf50,,6,2022-08-24 08:27,2022-08-24 11:37
+Production,133,production,#2196f3,,4,2022-08-24 08:26,2022-08-24 11:38</code></pre>
+        </details>
+        <form method="POST" enctype="multipart/form-data">
+          {{ tags_form.csrf_token }}
+          {{ render_field(tags_form.import_file) }}
+          {{ tags_form.submit(class='btn btn-primary') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── Server Roles ── #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-diagram-3 me-1"></i>Server Roles
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          Uses <code>Name</code>, <code>Color</code>, and <code>Description</code>.
+          The <code>Devices</code> column is a count only — server links come from the server import
+          (<code>Roles</code> column). <code>Slug</code>, <code>ID</code>, etc. are ignored.
+        </p>
+        <details class="mb-3">
+          <summary class="small text-muted" style="cursor:pointer">Example CSV format</summary>
+          <pre class="small bg-body-secondary p-2 rounded mt-2 mb-0"><code>Name,Devices,VMs,Color,VM Role,Description,ID,Slug,Tags,Created,Last updated
+SQL Server,65,0,#795548,True,,2,sql-server,,2022-08-12 10:33,2022-08-12 10:33
+ESB,23,0,#9e9e9e,True,Enterprise Service Bus,16,esb,,2023-10-13 14:02,2023-10-13 14:02
+Misc,12,0,#9e9e9e,True,,15,misc,,2023-10-13 14:01,2023-10-13 14:02</code></pre>
+        </details>
+        <form method="POST" enctype="multipart/form-data">
+          {{ roles_form.csrf_token }}
+          {{ render_field(roles_form.import_file) }}
+          {{ roles_form.submit(class='btn btn-primary') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── Products ── #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-briefcase me-1"></i>Products
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          Uses <code>Name</code>, <code>Comments</code>, and <code>Devices</code>.
+          Messy whitespace in <code>Devices</code> is fine — each non-empty line is a server name to link.
+          <code>ID</code> is ignored. Servers must already exist in InfraBox, or re-import after server import.
+        </p>
+        <details class="mb-3">
+          <summary class="small text-muted" style="cursor:pointer">Example CSV format</summary>
+          <pre class="small bg-body-secondary p-2 rounded mt-2 mb-0"><code>Name,Comments,Devices,ID
+WebApp,,"web-app-01.example.com
+web-app-02.example.com
+web-backup-01.example.com",8
+Billing,,"billing-app-01.example.com
+billing-db-01.example.com",40</code></pre>
+        </details>
+        <form method="POST" enctype="multipart/form-data">
+          {{ products_form.csrf_token }}
+          {{ render_field(products_form.import_file) }}
+          {{ products_form.submit(class='btn btn-primary') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── Programs ── #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-code-square me-1"></i>Programs
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          Uses <code>Name</code>, <code>Comments</code>, and <code>Devices</code>.
+          Multiline or messy whitespace in <code>Devices</code> is fine — each line is a server name to link.
+          <code>ID</code> is ignored. Servers must already exist in InfraBox (import servers first).
+        </p>
+        <details class="mb-3">
+          <summary class="small text-muted" style="cursor:pointer">Example CSV format</summary>
+          <pre class="small bg-body-secondary p-2 rounded mt-2 mb-0"><code>Name,Comments,Devices,ID
+Reporting,,reporting-01.example.com,56
+Web Server,,"web-proxy-01.example.com
+web-proxy-02.example.com",47</code></pre>
+        </details>
+        <form method="POST" enctype="multipart/form-data">
+          {{ programs_form.csrf_token }}
+          {{ render_field(programs_form.import_file) }}
+          {{ programs_form.submit(class='btn btn-primary') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {# ── Servers ── #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-server me-1"></i>Servers
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          Import <strong>last</strong>, after tags, roles, products, and programs.
+          Resolves <code>Roles</code>, <code>Products</code>, <code>Programs</code>, and
+          <code>Tags</code> by name. <code>Status</code> maps to InfraBox status
+          (e.g. Active → active). <code>Server Location</code> is matched by name to an existing server location.
+          <code>ID</code> and timestamps are ignored.
+        </p>
+        <details class="mb-3">
+          <summary class="small text-muted" style="cursor:pointer">Example CSV format</summary>
+          <pre class="small bg-body-secondary p-2 rounded mt-2 mb-0"><code>Name,Status,Roles,IP Address,URL,OS,Products,Programs,Comments,Tags,...,Server Location
+git-01.example.com,Active,Misc,10.0.0.61,https://git.example/,Ubuntu 22.04,,Gitlab,gitlab,Production,...,DC1
+db-01.example.com,Active,,10.0.0.71,,Ubuntu 18.04,,PostgreSQL,,Develop,...,DC1</code></pre>
+        </details>
+        <form method="POST" enctype="multipart/form-data">
+          {{ servers_form.csrf_token }}
+          {{ render_field(servers_form.import_file) }}
+          {{ servers_form.submit(class='btn btn-primary') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "infra_module/base.html" %}
+{% from "infra_module/macros.html" import render_ips %}
+{% block nav_servers %}nav-active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('servers_module.servers_all') }}">Servers</a></li>
+    <li class="breadcrumb-item active">{{ server['name'] }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+
+  {# ── Left: main info ── #}
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold fs-5">
+          <i class="bi bi-server me-2"></i>{{ server['name'] }}
+        </span>
+        <span class="badge text-bg-{{ status_badge(server.get('status','active')) }} fs-6">
+          {{ server.get('status','active')|capitalize }}
+        </span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-3 text-muted">IP Address(es)</dt>
+          <dd class="col-sm-9">{{ render_ips(server.get('ip_address'), copyable=true, small=false) }}</dd>
+
+          <dt class="col-sm-3 text-muted">URL(s)</dt>
+          <dd class="col-sm-9">
+            {% if server.get('url') %}
+              {% for u in server['url'].split(',') %}
+                <a href="{{ u.strip() }}" target="_blank" rel="noopener">{{ u.strip() }}</a>{% if not loop.last %}, {% endif %}
+              {% endfor %}
+            {% else %}—{% endif %}
+          </dd>
+
+          <dt class="col-sm-3 text-muted">OS</dt>
+          <dd class="col-sm-9">{{ server.get('os','') or '—' }}</dd>
+
+          <dt class="col-sm-3 text-muted">Server Location</dt>
+          <dd class="col-sm-9">
+            {% if server_location %}
+              <a href="{{ url_for('locations_module.location_view', location_id=server_location['id']) }}">{{ server_location['name'] }}</a>
+            {% else %}—{% endif %}
+          </dd>
+
+          <dt class="col-sm-3 text-muted">CPU</dt>
+          <dd class="col-sm-9">{{ server.get('cpu','') or '—' }}</dd>
+
+          <dt class="col-sm-3 text-muted">CPU Cores</dt>
+          <dd class="col-sm-9">{{ server.get('cpu_cores','') or '—' }}</dd>
+
+          <dt class="col-sm-3 text-muted">RAM</dt>
+          <dd class="col-sm-9">{{ server.get('ram','') or '—' }}</dd>
+
+          <dt class="col-sm-3 text-muted">Disk</dt>
+          <dd class="col-sm-9">{{ server.get('disk','') or '—' }}</dd>
+
+          <dt class="col-sm-3 text-muted">Roles</dt>
+          <dd class="col-sm-9">
+            {% for r in server_roles %}
+            <a href="{{ url_for('roles_module.role_view', role_id=r['id']) }}"
+               class="badge text-decoration-none me-1"
+               style="{{ color_badge_style(r.get('color','0d6efd')) }}">{{ r['name'] }}</a>
+            {% else %}—{% endfor %}
+          </dd>
+
+          <dt class="col-sm-3 text-muted">Tags</dt>
+          <dd class="col-sm-9">
+            {% for t in server_tags %}
+            <a href="{{ url_for('tags_module.tag_view', tag_id=t['id']) }}"
+               class="badge text-decoration-none me-1"
+               style="{{ color_badge_style(t.get('color','6c757d'), '6c757d') }}">{{ t['name'] }}</a>
+            {% else %}—{% endfor %}
+          </dd>
+
+          {% if server.get('comments') %}
+          <dt class="col-sm-3 text-muted">Comments</dt>
+          <dd class="col-sm-9">{{ server['comments'] }}</dd>
+          {% endif %}
+
+          <dt class="col-sm-3 text-muted">Added</dt>
+          <dd class="col-sm-9 text-muted small">{{ server.get('created','') }}</dd>
+          <dt class="col-sm-3 text-muted">Updated</dt>
+          <dd class="col-sm-9 text-muted small">{{ server.get('updated','') }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {# Products #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><i class="bi bi-briefcase me-1"></i>Products</div>
+      <div class="card-body">
+        {% if server_products %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for p in server_products %}
+          <a href="{{ url_for('products_module.product_view', product_id=p['id']) }}"
+             class="badge text-bg-warning text-dark text-decoration-none fs-6 px-3 py-2">
+            {{ p['name'] }}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <span class="text-muted">No products assigned.</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Programs #}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><i class="bi bi-code-square me-1"></i>Programs</div>
+      <div class="card-body">
+        {% if server_programs %}
+        <div class="d-flex flex-wrap gap-2">
+          {% for p in server_programs %}
+          <a href="{{ url_for('programs_module.program_view', program_id=p['id']) }}"
+             class="badge text-bg-info text-dark text-decoration-none fs-6 px-3 py-2">
+            {{ p['name'] }}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <span class="text-muted">No programs assigned.</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Right: actions ── #}
+  {% if current_user and current_user['role'] <= 2 %}
+  {% from "infra_module/macros.html" import delete_modal %}
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header">Actions</div>
+      <div class="card-body d-grid gap-2">
+        <a href="{{ url_for('servers_module.server_edit', server_id=server['id']) }}"
+           class="btn btn-warning"><i class="bi bi-pencil me-1"></i>Edit</a>
+        <a href="{{ url_for('servers_module.server_copy', server_id=server['id']) }}"
+           class="btn btn-secondary" target="_blank" rel="noopener">
+          <i class="bi bi-copy me-1"></i>Copy Server
+        </a>
+        {{ delete_modal(server['id'], server['name'],
+             url_for('servers_module.server_delete', server_id=server['id'])) }}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
