@@ -1,5 +1,5 @@
 {% extends "infra_module/base.html" %}
-{% from "infra_module/macros.html" import render_ips %}
+{% from "infra_module/macros.html" import render_ips, render_urls %}
 {% block nav_servers %}nav-active{% endblock %}
 
 {% block content %}
@@ -29,13 +29,7 @@
           <dd class="col-sm-9">{{ render_ips(server.get('ip_address'), copyable=true, small=false) }}</dd>
 
           <dt class="col-sm-3 text-muted">URL(s)</dt>
-          <dd class="col-sm-9">
-            {% if server.get('url') %}
-              {% for u in server['url'].split(',') %}
-                <a href="{{ u.strip() }}" target="_blank" rel="noopener">{{ u.strip() }}</a>{% if not loop.last %}, {% endif %}
-              {% endfor %}
-            {% else %}—{% endif %}
-          </dd>
+          <dd class="col-sm-9">{{ render_urls(server.get('url'), copyable=true, small=false) }}</dd>
 
           <dt class="col-sm-3 text-muted">OS</dt>
           <dd class="col-sm-9">{{ server.get('os','') or '—' }}</dd>

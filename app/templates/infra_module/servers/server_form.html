@@ -68,15 +68,16 @@
   </ol>
 </nav>
 
-<div class="row">
-  <div class="col-xl-8">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header fw-semibold">{{ title }}</div>
-      <div class="card-body">
-        <form method="POST" id="serverForm">
-          {{ form.csrf_token }}
-          {{ form.id }}
+<form method="POST" id="serverForm">
+  {{ form.csrf_token }}
+  {{ form.id }}
 
+  <div class="row g-4">
+    {# ── Left: core fields ── #}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header fw-semibold">{{ title }}</div>
+        <div class="card-body">
           <div class="row">
             <div class="col-md-8">{{ render_field(form.name, autofocus=true) }}</div>
             <div class="col-md-4">{{ render_select(form.status) }}</div>
@@ -114,70 +115,70 @@
           </div>
 
           {{ render_textarea(form.comments, rows=3) }}
+        </div>
+      </div>
+    </div>
 
-          <hr class="my-3">
-          <div class="row g-3">
-
-            {# ── Roles picker ── #}
-            <div class="col-md-12">
-              <label class="form-label fw-semibold"><i class="bi bi-tags me-1"></i>Server Roles</label>
-              <div id="roles-container" class="picker-container picker-empty"
-                   data-placeholder="No roles selected"></div>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-                      onclick="openPicker('roles')">
-                <i class="bi bi-plus-lg me-1"></i>Add Role
-              </button>
-            </div>
-
-            {# ── Products picker ── #}
-            <div class="col-md-4">
-              <label class="form-label fw-semibold"><i class="bi bi-briefcase me-1"></i>Products</label>
-              <div id="products-container" class="picker-container picker-empty"
-                   data-placeholder="No products selected"></div>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-                      onclick="openPicker('products')">
-                <i class="bi bi-plus-lg me-1"></i>Add Product
-              </button>
-            </div>
-
-            {# ── Programs picker ── #}
-            <div class="col-md-4">
-              <label class="form-label fw-semibold"><i class="bi bi-code-square me-1"></i>Programs</label>
-              <div id="programs-container" class="picker-container picker-empty"
-                   data-placeholder="No programs selected"></div>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-                      onclick="openPicker('programs')">
-                <i class="bi bi-plus-lg me-1"></i>Add Program
-              </button>
-            </div>
-
-            {# ── Tags picker ── #}
-            <div class="col-md-4">
-              <label class="form-label fw-semibold"><i class="bi bi-tag me-1"></i>Tags</label>
-              <div id="tags-container" class="picker-container picker-empty"
-                   data-placeholder="No tags selected"></div>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
-                      onclick="openPicker('tags')">
-                <i class="bi bi-plus-lg me-1"></i>Add Tag
-              </button>
-            </div>
-
-          </div>{# /row #}
-
-          <div class="d-flex gap-2 mt-4">
-            {{ form.submit(class='btn btn-primary') }}
-            {% if action == 'edit' and server %}
-            <a href="{{ url_for('servers_module.server_view', server_id=server['id']) }}" class="btn btn-outline-secondary">Cancel</a>
-            {% else %}
-            <a href="{{ url_for('servers_module.servers_all') }}" class="btn btn-outline-secondary">Cancel</a>
-            {% endif %}
+    {# ── Right: roles & associations ── #}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header fw-semibold">
+          <i class="bi bi-diagram-3 me-1"></i>Roles &amp; Associations
+        </div>
+        <div class="card-body">
+          <div class="mb-4">
+            <label class="form-label fw-semibold"><i class="bi bi-tags me-1"></i>Server Roles</label>
+            <div id="roles-container" class="picker-container picker-empty"
+                 data-placeholder="No roles selected"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                    onclick="openPicker('roles')">
+              <i class="bi bi-plus-lg me-1"></i>Add Role
+            </button>
           </div>
 
-        </form>
+          <div class="mb-4">
+            <label class="form-label fw-semibold"><i class="bi bi-briefcase me-1"></i>Products</label>
+            <div id="products-container" class="picker-container picker-empty"
+                 data-placeholder="No products selected"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                    onclick="openPicker('products')">
+              <i class="bi bi-plus-lg me-1"></i>Add Product
+            </button>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold"><i class="bi bi-code-square me-1"></i>Programs</label>
+            <div id="programs-container" class="picker-container picker-empty"
+                 data-placeholder="No programs selected"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                    onclick="openPicker('programs')">
+              <i class="bi bi-plus-lg me-1"></i>Add Program
+            </button>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label fw-semibold"><i class="bi bi-tag me-1"></i>Tags</label>
+            <div id="tags-container" class="picker-container picker-empty"
+                 data-placeholder="No tags selected"></div>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2"
+                    onclick="openPicker('tags')">
+              <i class="bi bi-plus-lg me-1"></i>Add Tag
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-</div>
+
+  <div class="d-flex gap-2 mt-4">
+    {{ form.submit(class='btn btn-primary') }}
+    {% if action == 'edit' and server %}
+    <a href="{{ url_for('servers_module.server_view', server_id=server['id']) }}" class="btn btn-outline-secondary">Cancel</a>
+    {% else %}
+    <a href="{{ url_for('servers_module.servers_all') }}" class="btn btn-outline-secondary">Cancel</a>
+    {% endif %}
+  </div>
+</form>
 
 {# ── Picker Modal (single reusable modal, content swapped by JS) ── #}
 <div class="modal fade" id="pickerModal" tabindex="-1" data-bs-keyboard="true">
