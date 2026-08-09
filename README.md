@@ -45,3 +45,4 @@ Use **Import / Export** in the UI to load or back up data:
 | `DATA_DIR` | `data` | Path to JSON data directory |
 | `APP_NAME` | `InfraBox` | Display name |
 | `ENVCONFIG` | `DEV` | `PROD` for production settings |
+| `READ_ONLY_MODE` | `False` | Instance-wide lock: blocks add/edit/delete (and setup); login, logout, import, and export still work |

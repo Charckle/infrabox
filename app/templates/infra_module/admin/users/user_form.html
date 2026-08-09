@@ -32,15 +32,19 @@
           </div>
 
           <div class="d-flex gap-2 mt-2">
+            {% if can_write %}
             {{ form.submit(class='btn btn-primary') }}
-            <a href="{{ url_for('admin_module.users_all') }}" class="btn btn-outline-secondary">Cancel</a>
+            {% endif %}
+            <a href="{{ url_for('admin_module.users_all') }}" class="btn btn-outline-secondary">
+              {% if can_write %}Cancel{% else %}Back{% endif %}
+            </a>
           </div>
         </form>
       </div>
     </div>
   </div>
 
-  {% if action == 'edit' and user %}
+  {% if can_write and action == 'edit' and user %}
   {% from "infra_module/macros.html" import delete_modal %}
   <div class="col-md-4 col-lg-3">
     <div class="card border-0 shadow-sm border-danger">

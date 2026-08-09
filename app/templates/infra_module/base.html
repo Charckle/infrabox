@@ -40,20 +40,20 @@
           </a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="{{ url_for('servers_module.servers_all') }}">All Servers</a></li>
-            {% if current_user and current_user['role'] <= 2 %}
+            {% if can_write %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('servers_module.server_new') }}">
               <i class="bi bi-plus-circle me-1"></i>Add Server</a></li>
             {% endif %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('roles_module.roles_all') }}">Server Roles</a></li>
-            {% if current_user and current_user['role'] <= 2 %}
+            {% if can_write %}
             <li><a class="dropdown-item" href="{{ url_for('roles_module.role_new') }}">
               <i class="bi bi-plus-circle me-1"></i>Add Role</a></li>
             {% endif %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('locations_module.locations_all') }}">Server Locations</a></li>
-            {% if current_user and current_user['role'] <= 2 %}
+            {% if can_write %}
             <li><a class="dropdown-item" href="{{ url_for('locations_module.location_new') }}">
               <i class="bi bi-plus-circle me-1"></i>Add Location</a></li>
             {% endif %}
@@ -66,19 +66,19 @@
           </a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="{{ url_for('products_module.products_all') }}">Products</a></li>
-            {% if current_user and current_user['role'] <= 2 %}
+            {% if can_write %}
             <li><a class="dropdown-item" href="{{ url_for('products_module.product_new') }}">
               <i class="bi bi-plus-circle me-1"></i>Add Product</a></li>
             {% endif %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('programs_module.programs_all') }}">Programs</a></li>
-            {% if current_user and current_user['role'] <= 2 %}
+            {% if can_write %}
             <li><a class="dropdown-item" href="{{ url_for('programs_module.program_new') }}">
               <i class="bi bi-plus-circle me-1"></i>Add Program</a></li>
             {% endif %}
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('tags_module.tags_all') }}">Tags</a></li>
-            {% if current_user and current_user['role'] <= 2 %}
+            {% if can_write %}
             <li><a class="dropdown-item" href="{{ url_for('tags_module.tag_new') }}">
               <i class="bi bi-plus-circle me-1"></i>Add Tag</a></li>
             {% endif %}
@@ -136,6 +136,13 @@
     </div>
   </div>
 </nav>
+
+{% if read_only_mode %}
+<div class="bg-warning-subtle border-bottom text-center py-2 small">
+  <i class="bi bi-lock-fill me-1"></i>
+  <strong>Read-only mode</strong> — viewing and import only; add, edit, and delete are disabled.
+</div>
+{% endif %}
 
 <div class="container-fluid mt-3">
   {% with messages = get_flashed_messages(with_categories=true) %}

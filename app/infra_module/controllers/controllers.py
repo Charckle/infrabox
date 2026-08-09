@@ -1,7 +1,7 @@
 import base64
 
 from flask import (Blueprint, request, render_template, flash,
-                   session, redirect, url_for)
+                   session, redirect, url_for, current_app)
 
 from app.infra_module.forms import LoginForm, SetupForm
 from app.infra_module.models import UserM, ServerM, ServerRoleM, ProductM, ProgramM, TagM
@@ -36,6 +36,10 @@ def index():
 def setup():
     if not UserM.needs_setup():
         return redirect(url_for('infra_module.login'))
+
+    # Fresh instances cannot create the first admin while read-only.
+    if current_app.config.get('READ_ONLY_MODE'):
+        return render_template('infra_module/auth/setup_readonly.html')
 
     form = SetupForm()
 

@@ -10,6 +10,10 @@ class Config(object):
 
     WTF_CSRF_ENABLED = environ.get('WTF_CSRF_ENABLED', 'True').lower() in ['true', '1', 't', 'y', 'yes']
 
+    # Instance-wide safety lock: blocks create/update/delete (including setup and
+    # user/password changes). Login, logout, import, and export remain allowed.
+    READ_ONLY_MODE = environ.get('READ_ONLY_MODE', 'False').lower() in ['true', '1', 't', 'y', 'yes']
+
     APP_NAME = environ.get('APP_NAME', 'InfraBox')
     APP_LOGGING = environ.get('APP_LOGGING', 'INFO')
 

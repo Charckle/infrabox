@@ -6,7 +6,7 @@
   <h5 class="mb-0"><i class="bi bi-tag me-2"></i>Tags
     <span class="badge text-bg-secondary ms-1">{{ tags|length }}</span>
   </h5>
-  {% if current_user and current_user['role'] <= 2 %}
+  {% if can_write %}
   <a href="{{ url_for('tags_module.tag_new') }}" class="btn btn-sm btn-primary">
     <i class="bi bi-plus-lg me-1"></i>Add Tag
   </a>
@@ -44,7 +44,7 @@
         <tr>
           <td colspan="3" class="text-center text-muted py-5">
             No tags found.
-            {% if current_user and current_user['role'] <= 2 %}
+            {% if can_write %}
             <a href="{{ url_for('tags_module.tag_new') }}">Add one</a>.
             {% endif %}
           </td>
