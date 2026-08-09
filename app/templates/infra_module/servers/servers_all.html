@@ -241,6 +241,7 @@
             <thead>
               <tr>
                 <th>Name</th>
+                <th style="width:2rem"></th>
                 <th id="colThLocation" class="d-none">Location</th>
                 <th>Tags</th>
                 <th>Status</th>
@@ -345,7 +346,7 @@ function saveColumnState() {
 }
 
 function tableColCount() {
-  return 7
+  return 8
     + (columnState.location ? 1 : 0)
     + (columnState.programs ? 1 : 0)
     + (columnState.urls ? 1 : 0)
@@ -486,9 +487,19 @@ function renderURLs(url) {
   const urls = url.split(',').map(s => s.trim()).filter(Boolean);
   if (!urls.length) return '—';
   return urls.map(u =>
-    `<a href="${hesc(u)}" target="_blank" rel="noopener" class="small"
-        onclick="event.stopPropagation()">${hesc(u)}</a>`
+    `<span class="small ib-copyable text-primary" role="button" tabindex="0"
+           title="Click to copy URL" data-copy="${hesc(u)}"
+           onclick="ibCopyText(this.dataset.copy,event)">${hesc(u)}</span>`
   ).join(', ');
+}
+
+function renderInfoCopy(name, ip_address) {
+  const ips = (ip_address || '').split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+  const line = ips.length ? `${name} ${ips.join(', ')}` : name;
+  return `<i class="bi bi-info-circle ib-copyable text-muted"
+             role="button" tabindex="0" title="Copy name and IPs"
+             data-copy="${hesc(line)}"
+             onclick="ibCopyText(this.dataset.copy,event)"></i>`;
 }
 
 function renderTable(servers) {
@@ -518,7 +529,8 @@ function renderTable(servers) {
       <td><span class="ib-copyable fw-semibold text-primary"
                role="button" tabindex="0" title="Click to copy name"
                data-copy="${hesc(s.name)}"
-               onclick="ibCopyText(this.dataset.copy,event)">${hesc(s.name)}</span></td>`;
+               onclick="ibCopyText(this.dataset.copy,event)">${hesc(s.name)}</span></td>
+      <td class="text-center">${renderInfoCopy(s.name, s.ip_address)}</td>`;
     if (columnState.location) row += `<td class="small">${location ? hesc(location.name) : '—'}</td>`;
     row += `<td class="small">${tagBadges || ''}</td>
       <td><span class="badge text-bg-${statusBadgeCls(s.status)}">${hesc((s.status||'active'))}</span></td>

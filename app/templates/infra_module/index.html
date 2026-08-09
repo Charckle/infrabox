@@ -1,5 +1,5 @@
 {% extends "infra_module/base.html" %}
-{% from "infra_module/macros.html" import render_ips %}
+{% from "infra_module/macros.html" import render_ips, render_urls %}
 
 {% block content %}
 <div class="row mb-4">
@@ -87,14 +87,22 @@
       <thead>
         <tr>
           <th>Name</th>
+          <th style="width:2rem"></th>
           <th>Status</th>
           <th>IP Address</th>
+          <th>URL(s)</th>
           <th>OS</th>
           <th>Added</th>
         </tr>
       </thead>
       <tbody>
         {% for s in recent_servers %}
+        {% set ips = s.get('ip_address','') | split_ips %}
+        {% if ips %}
+          {% set info_copy = s['name'] ~ ' ' ~ (ips | join(', ')) %}
+        {% else %}
+          {% set info_copy = s['name'] %}
+        {% endif %}
         <tr onclick="window.location='{{ url_for('servers_module.server_view', server_id=s['id']) }}'">
           <td>
             <span class="ib-copyable fw-semibold text-primary"
@@ -102,15 +110,22 @@
                   data-copy="{{ s['name']|e }}"
                   onclick="ibCopyText(this.dataset.copy, event)">{{ s['name'] }}</span>
           </td>
+          <td class="text-center">
+            <i class="bi bi-info-circle ib-copyable text-muted"
+               role="button" tabindex="0" title="Copy name and IPs"
+               data-copy="{{ info_copy|e }}"
+               onclick="ibCopyText(this.dataset.copy, event)"></i>
+          </td>
           <td><span class="badge text-bg-{{ status_badge(s.get('status','active')) }}">{{ s.get('status','active')|capitalize }}</span></td>
           <td>
             {{ render_ips(s.get('ip_address'), copyable=true) }}
           </td>
+          <td>{{ render_urls(s.get('url'), copyable=true) }}</td>
           <td>{{ s.get('os','') or '—' }}</td>
           <td class="text-muted small">{{ s.get('created','') }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="text-center text-muted py-4">No servers yet. <a href="{{ url_for('servers_module.server_new') }}">Add one</a>.</td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-4">No servers yet. <a href="{{ url_for('servers_module.server_new') }}">Add one</a>.</td></tr>
         {% endfor %}
       </tbody>
     </table>

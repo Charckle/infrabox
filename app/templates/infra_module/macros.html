@@ -63,6 +63,22 @@
 {% else %}—{% endif %}
 {% endmacro %}
 
+{% macro render_urls(url, copyable=true, small=true) %}
+{% if url %}
+  {% for part in url.split(',') if part.strip() %}
+    {% set u = part.strip() %}
+    {% if copyable %}
+    <span class="{{ 'small ' if small }}ib-copyable text-primary"
+          role="button" tabindex="0" title="Click to copy URL"
+          data-copy="{{ u|e }}"
+          onclick="ibCopyText(this.dataset.copy, event)">{{ u }}</span>
+    {% else %}
+    <span class="{{ 'small' if small }}">{{ u }}</span>
+    {% endif %}{% if not loop.last %}, {% endif %}
+  {% else %}—{% endfor %}
+{% else %}—{% endif %}
+{% endmacro %}
+
 {% macro delete_modal(object_id, object_name, delete_url, label='Request deletion', confirm_name=None) %}
 <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ object_id }}">
   <i class="bi bi-trash me-1"></i>{{ label }}
