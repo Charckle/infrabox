@@ -154,12 +154,21 @@ def split_ips_filter(value):
     return split_ip_addresses(value or '')
 
 
+env_label = 'production' if env_config == 'PROD' else 'development'
+needs_admin_setup = UserM.needs_setup()
+read_only = bool(app.config.get('READ_ONLY_MODE'))
+
 print(BANNER, flush=True)
-print(f'Environment: {env_config}', flush=True)
-if app.config.get('READ_ONLY_MODE'):
-    print('Read-only mode: ON', flush=True)
+print(f'Environment: {env_label} ({env_config})', flush=True)
+print(f'Read-only mode: {"ON" if read_only else "OFF"}', flush=True)
+if needs_admin_setup:
+    print('Admin setup: REQUIRED (no users in data/users.json — open /setup/)', flush=True)
+else:
+    print('Admin setup: not required (users already exist)', flush=True)
+
 app.logger.info(
-    'InfraBox started (environment=%s, read_only=%s)',
-    env_config,
-    bool(app.config.get('READ_ONLY_MODE')),
+    'InfraBox started (environment=%s, read_only=%s, admin_setup_required=%s)',
+    env_label,
+    read_only,
+    needs_admin_setup,
 )
