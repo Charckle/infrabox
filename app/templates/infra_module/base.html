@@ -17,6 +17,9 @@
     .color-chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; }
     .ib-copyable { cursor: copy; }
     .ib-copyable:hover { text-decoration: underline dotted; }
+    button.ib-copyable,
+    button.ib-copyable:hover { cursor: copy; text-decoration: none; }
+    button.ib-copyable:hover { text-decoration: underline dotted; }
   </style>
   {% block extrahead %}{% endblock %}
 </head>
@@ -101,27 +104,24 @@
       </ul>
 
       {% if current_user %}
-      <form class="d-flex mx-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width: 22rem"
-            method="GET" action="{{ url_for('servers_module.servers_all') }}">
-        <input class="form-control form-control-sm" type="search" name="q"
-               value="{{ request.args.get('q', '') }}"
-               placeholder="Search servers…" aria-label="Search servers">
-      </form>
+      <div class="d-flex align-items-center mx-lg-3 my-2 my-lg-0 flex-grow-1" style="max-width: 24rem">
+        <button class="btn btn-outline-secondary btn-sm me-2 flex-shrink-0" type="button"
+                data-bs-toggle="offcanvas" data-bs-target="#quickServers"
+                aria-controls="quickServers" title="Frequently used servers">
+          <i class="bi bi-star-fill"></i>
+          {% if favorite_servers %}
+          <span class="badge text-bg-warning text-dark ms-1">{{ favorite_servers|length }}</span>
+          {% endif %}
+        </button>
+        <form class="d-flex flex-grow-1" method="GET" action="{{ url_for('servers_module.servers_all') }}">
+          <input class="form-control form-control-sm" type="search" name="q"
+                 value="{{ request.args.get('q', '') }}"
+                 placeholder="Search servers…" aria-label="Search servers">
+        </form>
+      </div>
       {% endif %}
 
       <ul class="navbar-nav ms-auto align-items-center">
-        {% if current_user %}
-        <li class="nav-item me-2">
-          <button class="btn btn-outline-secondary btn-sm" type="button"
-                  data-bs-toggle="offcanvas" data-bs-target="#quickServers"
-                  aria-controls="quickServers" title="Frequently used servers">
-            <i class="bi bi-star-fill"></i>
-            {% if favorite_servers %}
-            <span class="badge text-bg-warning text-dark ms-1">{{ favorite_servers|length }}</span>
-            {% endif %}
-          </button>
-        </li>
-        {% endif %}
         <li class="nav-item me-2">
           <button class="btn btn-outline-secondary btn-sm" id="themeToggle" title="Toggle dark mode">
             <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
@@ -161,14 +161,46 @@
     {% if favorite_servers %}
     <div class="list-group list-group-flush">
       {% for s in favorite_servers %}
-      <a class="list-group-item list-group-item-action py-3"
-         href="{{ url_for('servers_module.server_view', server_id=s['id']) }}">
-        <div class="fw-semibold">{{ s['name'] }}</div>
-        <div class="small text-muted font-monospace">
-          {% set ips = s.get('ip_address', '') | split_ips %}
-          {{ ips | join(', ') if ips else '—' }}
-        </div>
-      </a>
+      {% set first_url = (s.get('url') or '').split(',')[0].strip() %}
+      {% set ips = s.get('ip_address', '') | split_ips %}
+      <div class="list-group-item d-flex align-items-center gap-2 py-2">
+        {% if ips %}
+        <button type="button"
+                class="btn btn-link text-primary text-start fw-semibold flex-grow-1 p-0 border-0 ib-copyable"
+                title="Click to copy IP" aria-label="Copy IP for {{ s['name'] }}"
+                data-copy="{{ ips[0]|e }}"
+                onclick="ibCopyText(this.dataset.copy, event)">{{ s['name'] }}</button>
+        {% elif first_url %}
+        <button type="button"
+                class="btn btn-link text-primary text-start fw-semibold flex-grow-1 p-0 border-0 ib-copyable"
+                title="Click to copy URL" aria-label="Copy URL for {{ s['name'] }}"
+                data-copy="{{ first_url|e }}"
+                onclick="ibCopyText(this.dataset.copy, event)">{{ s['name'] }}</button>
+        {% else %}
+        <span class="fw-semibold flex-grow-1">{{ s['name'] }}</span>
+        {% endif %}
+        {% if first_url and ips %}
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                title="Copy URL" aria-label="Copy URL for {{ s['name'] }}"
+                data-copy="{{ first_url|e }}"
+                onclick="ibCopyText(this.dataset.copy, event)">
+          <i class="bi bi-link-45deg"></i>
+        </button>
+        {% endif %}
+        {% if ips %}
+        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                title="Copy IP" aria-label="Copy IP for {{ s['name'] }}"
+                data-copy="{{ ips[0]|e }}"
+                onclick="ibCopyText(this.dataset.copy, event)">
+          <i class="bi bi-ethernet"></i>
+        </button>
+        {% endif %}
+        <a class="btn btn-sm btn-outline-secondary flex-shrink-0"
+           href="{{ url_for('servers_module.server_view', server_id=s['id']) }}"
+           title="Open server" aria-label="Open {{ s['name'] }}">
+          <i class="bi bi-box-arrow-up-right"></i>
+        </a>
+      </div>
       {% endfor %}
     </div>
     {% else %}
@@ -236,7 +268,7 @@
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'ibCopyToast';
-      toast.className = 'toast align-items-center text-bg-dark border-0 position-fixed bottom-0 end-0 m-3';
+      toast.className = 'toast align-items-center text-bg-dark border-0 position-fixed bottom-0 start-50 translate-middle-x mb-3';
       toast.setAttribute('role', 'alert');
       toast.innerHTML = `
         <div class="d-flex">

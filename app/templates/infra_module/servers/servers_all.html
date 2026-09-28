@@ -16,6 +16,10 @@
   }
   .filter-combobox-menu.show { display: block; }
   .filter-combobox-item { cursor: pointer; white-space: normal; }
+  .filter-combobox-item.active {
+    background-color: var(--bs-primary);
+    color: #fff;
+  }
   .filter-multi-chips { min-height: 0; }
   .filter-multi-chip {
     display: inline-flex;
@@ -574,14 +578,32 @@ function initFilterMultiCombobox(el) {
     }).join('');
   }
 
+  let activeIndex = -1;
+
+  function menuItems() {
+    return [...menu.querySelectorAll('.filter-combobox-item')];
+  }
+
   function renderMenu(query) {
     const q = query.toLowerCase().trim();
     const sel = new Set(selectedIds());
     const matches = items.filter(i => !sel.has(String(i.id)) && (!q || i.name.toLowerCase().includes(q)));
+    activeIndex = -1;
     menu.innerHTML = matches.length
       ? matches.map(i => `<button type="button" class="dropdown-item filter-combobox-item" data-id="${i.id}">${filterEscHtml(i.name)}</button>`).join('')
       : `<div class="dropdown-item-text text-muted small">${q ? 'No matches' : 'All selected'}</div>`;
     menu.classList.add('show');
+  }
+
+  function setActive(index) {
+    const buttons = menuItems();
+    if (!buttons.length) {
+      activeIndex = -1;
+      return;
+    }
+    activeIndex = (index + buttons.length) % buttons.length;
+    buttons.forEach((btn, i) => btn.classList.toggle('active', i === activeIndex));
+    buttons[activeIndex].scrollIntoView({ block: 'nearest' });
   }
 
   function addId(id) {
@@ -590,6 +612,15 @@ function initFilterMultiCombobox(el) {
     renderChips();
     renderMenu(input.value);
     applyFilters();
+  }
+
+  function commitHighlighted() {
+    const buttons = menuItems();
+    if (!menu.classList.contains('show') || !buttons.length) return;
+    const index = activeIndex >= 0 ? activeIndex : 0;
+    const id = buttons[index].dataset.id;
+    input.value = '';
+    addId(id);
   }
 
   function removeId(id) {
@@ -603,9 +634,38 @@ function initFilterMultiCombobox(el) {
   input.addEventListener('input', () => renderMenu(input.value));
   menu.addEventListener('mousedown', ev => ev.preventDefault());
   menu.addEventListener('click', ev => { const btn = ev.target.closest('[data-id]'); if (btn) addId(btn.dataset.id); });
+  menu.addEventListener('mousemove', ev => {
+    const btn = ev.target.closest('.filter-combobox-item');
+    if (!btn) return;
+    const index = menuItems().indexOf(btn);
+    if (index !== -1 && index !== activeIndex) setActive(index);
+  });
   chipsWrap.addEventListener('click', ev => { const btn = ev.target.closest('[data-remove-id]'); if (btn) removeId(btn.dataset.removeId); });
-  input.addEventListener('blur', () => setTimeout(() => { menu.classList.remove('show'); input.value = ''; }, 150));
-  input.addEventListener('keydown', ev => { if (ev.key === 'Escape') { menu.classList.remove('show'); input.value = ''; input.blur(); } });
+  input.addEventListener('blur', () => setTimeout(() => { menu.classList.remove('show'); input.value = ''; activeIndex = -1; }, 150));
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      if (!menu.classList.contains('show')) renderMenu(input.value);
+      const count = menuItems().length;
+      if (!count) return;
+      setActive(activeIndex < 0 ? 0 : activeIndex + 1);
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      if (!menu.classList.contains('show')) renderMenu(input.value);
+      const count = menuItems().length;
+      if (!count) return;
+      setActive(activeIndex < 0 ? count - 1 : activeIndex - 1);
+    } else if (ev.key === 'Enter') {
+      if (!menu.classList.contains('show') || !menuItems().length) return;
+      ev.preventDefault();
+      commitHighlighted();
+    } else if (ev.key === 'Escape') {
+      menu.classList.remove('show');
+      input.value = '';
+      activeIndex = -1;
+      input.blur();
+    }
+  });
 }
 
 function clearAllFilters() {
