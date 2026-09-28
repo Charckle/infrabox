@@ -1,8 +1,8 @@
 from flask import (Blueprint, request, render_template, flash,
-                   redirect, url_for)
+                   redirect, url_for, session)
 
 from app.infra_module.forms import ServerForm
-from app.infra_module.models import ServerM, ServerRoleM, ProductM, ProgramM, TagM, ServerLocationM
+from app.infra_module.models import ServerM, ServerRoleM, ProductM, ProgramM, TagM, ServerLocationM, UserM
 from app.infra_module.other import UserRole, SERVER_STATUS_CHOICES
 from app.wrappers import access_required
 
@@ -103,6 +103,9 @@ def server_view(server_id):
 
     server_location = ServerLocationM.get_one(server.get('location_id')) if server.get('location_id') else None
 
+    user = UserM.get_one(session.get('user_id'))
+    is_favorite = server_id in UserM.favorite_ids(user)
+
     return render_template(
         'infra_module/servers/server_view.html',
         server=server,
@@ -111,7 +114,24 @@ def server_view(server_id):
         server_programs=server_programs,
         server_tags=server_tags,
         server_location=server_location,
+        is_favorite=is_favorite,
     )
+
+
+@servers_module.route('/<int:server_id>/favorite/', methods=['POST'])
+@access_required()
+def server_favorite(server_id):
+    server = ServerM.get_one(server_id)
+    if not server:
+        flash('Server not found.', 'error')
+        return redirect(url_for('servers_module.servers_all'))
+
+    pinned = UserM.toggle_favorite(session['user_id'], server_id)
+    if pinned:
+        flash(f'"{server["name"]}" added to your quick list.', 'success')
+    else:
+        flash(f'"{server["name"]}" removed from your quick list.', 'success')
+    return redirect(url_for('servers_module.server_view', server_id=server_id))
 
 
 @servers_module.route('/new/', methods=['GET', 'POST'])

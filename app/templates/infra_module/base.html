@@ -110,6 +110,18 @@
       {% endif %}
 
       <ul class="navbar-nav ms-auto align-items-center">
+        {% if current_user %}
+        <li class="nav-item me-2">
+          <button class="btn btn-outline-secondary btn-sm" type="button"
+                  data-bs-toggle="offcanvas" data-bs-target="#quickServers"
+                  aria-controls="quickServers" title="Frequently used servers">
+            <i class="bi bi-star-fill"></i>
+            {% if favorite_servers %}
+            <span class="badge text-bg-warning text-dark ms-1">{{ favorite_servers|length }}</span>
+            {% endif %}
+          </button>
+        </li>
+        {% endif %}
         <li class="nav-item me-2">
           <button class="btn btn-outline-secondary btn-sm" id="themeToggle" title="Toggle dark mode">
             <i class="bi bi-moon-stars-fill" id="themeIcon"></i>
@@ -136,6 +148,35 @@
     </div>
   </div>
 </nav>
+
+{% if current_user %}
+<div class="offcanvas offcanvas-end" tabindex="-1" id="quickServers" aria-labelledby="quickServersLabel">
+  <div class="offcanvas-header border-bottom">
+    <h5 class="offcanvas-title" id="quickServersLabel">
+      <i class="bi bi-star-fill me-1"></i>Quick servers
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    {% if favorite_servers %}
+    <div class="list-group list-group-flush">
+      {% for s in favorite_servers %}
+      <a class="list-group-item list-group-item-action py-3"
+         href="{{ url_for('servers_module.server_view', server_id=s['id']) }}">
+        <div class="fw-semibold">{{ s['name'] }}</div>
+        <div class="small text-muted font-monospace">
+          {% set ips = s.get('ip_address', '') | split_ips %}
+          {{ ips | join(', ') if ips else '—' }}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted p-3 mb-0">No servers in your quick list. Open a server and add it.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 {% if read_only_mode %}
 <div class="bg-warning-subtle border-bottom text-center py-2 small">

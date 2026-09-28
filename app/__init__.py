@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, send_from_directory, request, redirect, url_for, flash
 from os import environ
 import logging
+import re
 
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
@@ -36,12 +37,16 @@ def _path_matches(path: str, prefix: str) -> bool:
     return normalized == prefix or normalized.startswith(prefix + '/')
 
 
+_FAVORITE_PATH = re.compile(r'^/servers/\d+/favorite/?$')
+
+
 def _read_only_write_allowed(path: str) -> bool:
     """Paths that may still mutate state while READ_ONLY_MODE is on."""
     return (
         _path_matches(path, '/login')
         or _path_matches(path, '/import-export/netbox')
         or _path_matches(path, '/import-export/infrabox/import')
+        or bool(_FAVORITE_PATH.match(path))
     )
 
 
@@ -50,7 +55,7 @@ def enforce_read_only_mode():
     if not app.config.get('READ_ONLY_MODE'):
         return None
 
-    # Block all mutating requests except login + imports.
+    # Block all mutating requests except login, imports, and the per-user quick list.
     # /setup/ POST is intentionally not allowlisted.
     if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
         if _read_only_write_allowed(request.path):
@@ -129,6 +134,7 @@ def inject_globals():
         and current_user is not None
         and current_user.get('role', 99) <= UserRole.READWRITE.value
     )
+    favorite_servers = UserM.favorite_servers(current_user)
     return dict(
         ServerRoleM=ServerRoleM,
         ProductM=ProductM,
@@ -142,6 +148,7 @@ def inject_globals():
         status_badge=status_badge,
         color_badge_style=color_badge_style,
         current_user=current_user,
+        favorite_servers=favorite_servers,
         read_only_mode=read_only_mode,
         can_write=can_write,
         banner=BANNER,

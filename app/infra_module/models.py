@@ -67,6 +67,49 @@ class UserM:
     def delete(id_) -> bool:
         return store.delete('users', id_)
 
+    @staticmethod
+    def favorite_ids(user: dict | None) -> list[int]:
+        if not user:
+            return []
+        ids = []
+        seen = set()
+        for raw in user.get('favorite_server_ids') or []:
+            try:
+                sid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if sid not in seen:
+                seen.add(sid)
+                ids.append(sid)
+        return ids
+
+    @staticmethod
+    def favorite_servers(user: dict | None) -> list:
+        """Servers on this user's quick list, in pin order. Missing servers are skipped."""
+        servers = []
+        for sid in UserM.favorite_ids(user):
+            server = ServerM.get_one(sid)
+            if server:
+                servers.append(server)
+        return servers
+
+    @staticmethod
+    def toggle_favorite(user_id, server_id: int) -> bool:
+        """Add or remove a server. Returns True when the server is now on the list."""
+        user = store.get_one('users', user_id)
+        if not user:
+            return False
+        sid = int(server_id)
+        ids = UserM.favorite_ids(user)
+        if sid in ids:
+            ids = [i for i in ids if i != sid]
+            pinned = False
+        else:
+            ids.append(sid)
+            pinned = True
+        store.update('users', user_id, {'favorite_server_ids': ids})
+        return pinned
+
 
 # ─── Server Roles ─────────────────────────────────────────────────────────────
 
